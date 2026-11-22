@@ -222,16 +222,19 @@ public actor BabyHost {
     // MARK: Router port
 
     private func openRouterPort(for offer: String) async -> PortMapping? {
-        guard let portMapper, let candidate = SessionDescriptionInspector.mappableCandidate(in: offer) else { return nil }
-        let outcome = await portMapper.open(internalAddress: candidate.address, internalPort: candidate.port)
-        LinkLog.note("baby unit: router port for \(candidate.address):\(candidate.port): \(outcome)")
-        guard case .mapped(let mapping) = outcome else { return nil }
-        // Opened too late, while monitoring was being stopped: give it back at once.
-        guard state != .stopped else {
-            await portMapper.close(mapping)
-            return nil
+        guard let portMapper else { return nil }
+        for candidate in SessionDescriptionInspector.mappableCandidates(in: offer) {
+            let outcome = await portMapper.open(internalAddress: candidate.address, internalPort: candidate.port)
+            LinkLog.note("baby unit: router port for \(candidate.address):\(candidate.port): \(outcome)")
+            guard case .mapped(let mapping) = outcome else { continue }
+            // Opened too late, while monitoring was being stopped: give it back at once.
+            guard state != .stopped else {
+                await portMapper.close(mapping)
+                return nil
+            }
+            return mapping
         }
-        return mapping
+        return nil
     }
 
     private func closeRouterPort(of link: ObjectIdentifier) async {

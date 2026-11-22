@@ -213,7 +213,7 @@ final class FakeRouter: @unchecked Sendable {
         let mapper = router.makeMapper()
 
         let outcome = try #require(await value(within: .seconds(20)) {
-            await mapper.open(internalAddress: "192.168.1.20", internalPort: 50_000)
+            await mapper.open(internalAddress: "127.0.0.1", internalPort: 50_000)
         })
         guard case .mapped(let mapping) = outcome else {
             Issue.record("No port was opened: \(outcome)")
@@ -235,7 +235,7 @@ final class FakeRouter: @unchecked Sendable {
         let mapper = router.makeMapper()
 
         let outcome = try #require(await value(within: .seconds(30)) {
-            await mapper.open(internalAddress: "192.168.1.20", internalPort: 50_000)
+            await mapper.open(internalAddress: "127.0.0.1", internalPort: 50_000)
         })
         guard case .mapped(let mapping) = outcome else {
             Issue.record("No port was opened: \(outcome)")
@@ -256,7 +256,7 @@ final class FakeRouter: @unchecked Sendable {
         defer { router.stop() }
 
         let outcome = try #require(await value(within: .seconds(30)) {
-            await router.makeMapper().open(internalAddress: "192.168.1.20", internalPort: 50_000)
+            await router.makeMapper().open(internalAddress: "127.0.0.1", internalPort: 50_000)
         })
         guard case .mapped(let mapping) = outcome else {
             Issue.record("No port was opened: \(outcome)")
@@ -273,21 +273,33 @@ final class FakeRouter: @unchecked Sendable {
             defer { router.stop() }
 
             let outcome = await value(within: .seconds(30)) {
-                await router.makeMapper().open(internalAddress: "192.168.1.20", internalPort: 50_000)
+                await router.makeMapper().open(internalAddress: "127.0.0.1", internalPort: 50_000)
             }
             #expect(outcome == .sharedAddress("100.64.1.2"))
             #expect(router.forwarded.current.isEmpty)
         }
     }
 
+    @Test func anAddressOnAnotherNetworkIsNotTheRoutersBusiness() async throws {
+        let router = FakeRouter()
+        try await router.start()
+        defer { router.stop() }
+
+        let outcome = await value(within: .seconds(10)) {
+            await router.makeMapper().open(internalAddress: "10.20.30.40", internalPort: 50_000)
+        }
+        #expect(outcome == .noRouter)
+        #expect(router.forwarded.current.isEmpty)
+    }
+
     @Test func aRouterThatSpeaksNeitherIsGivenUpOnQuickly() async throws {
         let router = FakeRouter(speaksNATPMP: false, speaksUPnP: false)
         let mapper = router.makeMapper()
 
-        let first = await value(within: .seconds(15)) { await mapper.open(internalAddress: "192.168.1.20", internalPort: 50_000) }
+        let first = await value(within: .seconds(15)) { await mapper.open(internalAddress: "127.0.0.1", internalPort: 50_000) }
         #expect(first == .unsupported)
         // It is not asked again for a while: the answer comes at once.
-        let second = await value(within: .seconds(1)) { await mapper.open(internalAddress: "192.168.1.20", internalPort: 50_001) }
+        let second = await value(within: .seconds(1)) { await mapper.open(internalAddress: "127.0.0.1", internalPort: 50_001) }
         #expect(second == .unsupported)
     }
 }

@@ -8,9 +8,12 @@ final class FakePortMapper: PortMapper, @unchecked Sendable {
     let open = Locked([PortMapping]())
     let openedCount = Locked(0)
     let outcome = Locked<PortMappingOutcome?>(nil)
+    /// The only local address this router knows, when set.
+    let ownNetwork = Locked<String?>(nil)
 
     func open(internalAddress: String, internalPort: UInt16) async -> PortMappingOutcome {
         if let outcome = outcome.current { return outcome }
+        if let ownNetwork = ownNetwork.current, ownNetwork != internalAddress { return .noRouter }
         let mapping = PortMapping(
             method: .upnp, externalAddress: "82.64.10.20", externalPort: 40_000 + UInt16(openedCount.current),
             internalAddress: internalAddress, internalPort: internalPort, lifetime: 3600
@@ -203,13 +206,15 @@ final class FakePortMapper: PortMapper, @unchecked Sendable {
         internalAddress: "192.168.1.20", internalPort: 50_000, lifetime: 3600
     )
 
-    @Test func theLocalAddressARouterCanForwardToIsFound() throws {
-        let candidate = try #require(SessionDescriptionInspector.mappableCandidate(in: offer))
-        #expect(candidate.address == "192.168.1.20")
-        #expect(candidate.port == 50_000)
+    @Test func theLocalAddressesARouterCouldForwardToAreFound() throws {
+        // A second private address, as on a device that is also on a mobile network, listed twice.
+        let cellular = "a=candidate:4 1 udp 2122129151 10.20.30.40 50002 typ host generation 0"
+        let candidates = SessionDescriptionInspector.mappableCandidates(in: offer + cellular + "\r\n" + cellular + "\r\n")
+        #expect(candidates.map(\.address) == ["192.168.1.20", "10.20.30.40"])
+        #expect(candidates.map(\.port) == [50_000, 50_002])
         // Nothing to forward to: an IPv6 address needs no router's help, and TCP is not used.
         let withoutIPv4 = offer.replacingOccurrences(of: "192.168.1.20 50000", with: "2a01:e0a::9 50000")
-        #expect(SessionDescriptionInspector.mappableCandidate(in: withoutIPv4) == nil)
+        #expect(SessionDescriptionInspector.mappableCandidates(in: withoutIPv4).isEmpty)
     }
 
     @Test func theForwardedPortIsAddedNextToItsLocalAddress() {
@@ -275,6 +280,23 @@ final class FakePortMapper: PortMapper, @unchecked Sendable {
 
         #expect(await finishes { await host.stop() })
         #expect(await eventually { router.open.current.isEmpty })
+    }
+
+    @Test func theRouterIsAskedAboutEachLocalAddressUntilOneIsItsOwn() async throws {
+        router.ownNetwork.withLock { $0 = "192.168.1.20" }
+        let host = makeHost()
+        // The mobile network's address comes first in the offer.
+        media.offerCandidates.withLock {
+            $0 = "\r\na=candidate:4 1 udp 2122129151 10.20.30.40 50002 typ host generation 0" + $0
+        }
+        let access = Recorder(host.remoteAccessChanges)
+        await host.start()
+        #expect(await access.waitFor { $0 == .ready })
+
+        let published = try #require(try await RendezvousClient(provider: cloud, key: key, role: .parent).fetchPeer()?.description)
+        #expect(published.contains("82.64.10.20 40000 typ srflx raddr 192.168.1.20 rport 50000"))
+        #expect(!published.contains("raddr 10.20.30.40"))
+        #expect(await finishes { await host.stop() })
     }
 
     @Test func aRouterThatCannotHelpChangesNothing() async throws {

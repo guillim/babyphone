@@ -38,7 +38,8 @@ public struct PortMapping: Sendable, Equatable {
 /// What came of asking the router for a port.
 public enum PortMappingOutcome: Sendable, Equatable {
     case mapped(PortMapping)
-    /// This device has no IPv4 router to ask: it is not on Wi-Fi.
+    /// There is no IPv4 router to ask about that address: the device is not on Wi-Fi,
+    /// or the address belongs to another of its networks.
     case noRouter
     /// The router answers neither NAT-PMP nor UPnP, or refuses.
     case unsupported
@@ -56,13 +57,19 @@ public protocol PortMapper: Sendable {
 }
 
 extension SessionDescriptionInspector {
-    /// The address and port a router could forward to: the first IPv4 host candidate on the local network.
-    public static func mappableCandidate(in description: String) -> (address: String, port: UInt16)? {
+    /// The addresses and ports a router could forward to: the IPv4 host candidates on a private network.
+    ///
+    /// A device on Wi-Fi and on a mobile network lists one for each. Only the router knows which is its own.
+    public static func mappableCandidates(in description: String) -> [(address: String, port: UInt16)] {
+        var found: [(address: String, port: UInt16)] = []
         for line in description.split(whereSeparator: \.isNewline) {
-            guard let candidate = HostCandidate(line: line), AddressScope.of(candidate.address) == .privateNetwork else { continue }
-            return (candidate.address, candidate.port)
+            guard
+                let candidate = HostCandidate(line: line), AddressScope.of(candidate.address) == .privateNetwork,
+                !found.contains(where: { $0.address == candidate.address && $0.port == candidate.port })
+            else { continue }
+            found.append((candidate.address, candidate.port))
         }
-        return nil
+        return found
     }
 
     /// Adds the router's forwarded port to `description`, next to the local candidate it leads to.

@@ -47,6 +47,8 @@ public actor RouterPortMapper: PortMapper {
 
     public func open(internalAddress: String, internalPort: UInt16) async -> PortMappingOutcome {
         guard let gateway = fixedGateway ?? DefaultGateway.current() else { return .noRouter }
+        // A device on Wi-Fi and on a mobile network has an address on each. Only one is the router's business.
+        guard Datagram.localAddress(toward: gateway) == internalAddress else { return .noRouter }
         if let until = unhelpfulUntil[gateway], Date() < until { return .unsupported }
 
         let outcome: PortMappingOutcome
