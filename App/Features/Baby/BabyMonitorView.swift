@@ -18,7 +18,8 @@ struct BabyMonitorView: View {
             } else {
                 idle
             }
-            if model.nightLight == .screen {
+            // A touch hides the glow for a moment, so the controls underneath stay reachable.
+            if model.nightLight == .screen, model.isScreenDimmed {
                 nightLight
             }
         }

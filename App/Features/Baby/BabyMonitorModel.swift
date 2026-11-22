@@ -241,6 +241,9 @@ final class BabyMonitorModel: ObservableObject {
             nightLight = .off
         } else if usesFrontCamera || !roomLight.setTorch(true) {
             nightLight = .screen
+            // The screen is the lamp: let it glow at once rather than after the usual delay.
+            dimming?.cancel()
+            isScreenDimmed = true
         } else {
             nightLight = .torch
         }

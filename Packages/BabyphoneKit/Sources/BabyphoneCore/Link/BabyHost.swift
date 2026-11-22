@@ -174,8 +174,9 @@ public actor BabyHost {
         } else {
             await link.close()
         }
-        // The offer is spent or abandoned: say so rather than let the parent unit try it.
-        if !Task.isCancelled {
+        // A parent unit is connected, so the offer is spent: say so rather than let it be tried again.
+        // An offer that merely went stale is replaced by the next one, with no write in between.
+        if self.link != nil, !Task.isCancelled {
             try? await rendezvous.publish(EndpointAdvertisement(description: nil))
         }
     }

@@ -5,9 +5,9 @@ on:
   push:
   workflow_dispatch:
 
+# Each commit keeps its own result: a later push does not cancel the checks of an earlier one.
 concurrency:
-  group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  group: ci-${{ github.sha }}
 
 jobs:
   core:
