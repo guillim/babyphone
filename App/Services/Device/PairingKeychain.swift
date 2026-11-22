@@ -9,7 +9,7 @@ enum PairingKeychain {
     private static var query: [CFString: Any] {
         [
             kSecClass: kSecClassGenericPassword,
-            kSecAttrService: "nid.pairing",
+            kSecAttrService: "nuzzlecam.pairing",
             kSecAttrAccount: "pairing-keys",
         ]
     }

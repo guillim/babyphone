@@ -41,7 +41,7 @@ public final class WebRTCSession: NSObject, PeerSession, @unchecked Sendable {
     private static let gatheringTimeout: Duration = .seconds(2)
 
     private let eventContinuation: AsyncStream<PeerSessionEvent>.Continuation
-    private let queue = DispatchQueue(label: "nid.webrtc-session")
+    private let queue = DispatchQueue(label: "nuzzlecam.webrtc-session")
     // Only touched on `queue`.
     private var connection: RTCPeerConnection?
     private var dataChannel: RTCDataChannel?

@@ -130,7 +130,7 @@ struct DiagnosticsView: View {
         guard let csv = try? await HealthLog(database: database).csv(since: Date().addingTimeInterval(-24 * 3600)) else {
             return nil
         }
-        let url = FileManager.default.temporaryDirectory.appendingPathComponent("nid-health.csv")
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("nuzzlecam-health.csv")
         return (try? csv.write(to: url, atomically: true, encoding: .utf8)) != nil ? url : nil
     }
 }

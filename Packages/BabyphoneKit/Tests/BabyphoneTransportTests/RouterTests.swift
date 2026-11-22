@@ -15,7 +15,7 @@ final class FakeRouter: @unchecked Sendable {
     private let externalAddress: String
     private let speaksNATPMP: Bool
     private let speaksUPnP: Bool
-    private let queue = DispatchQueue(label: "nid.fake-router")
+    private let queue = DispatchQueue(label: "nuzzlecam.fake-router")
     private var listeners: [NWListener] = []
     private var httpPort: UInt16 = 0
 

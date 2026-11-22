@@ -16,7 +16,7 @@ final class ParentAudio: @unchecked Sendable {
     private let chimeBuffer = AVAudioPCMBuffer.mono(samples: ToneSynthesizer.chime(sampleRate: 44_100), sampleRate: 44_100)
     /// Every use of the engine goes through this queue: system notifications arrive
     /// on their own threads, and the engine is not safe to share.
-    private let queue = DispatchQueue(label: "nid.parent-audio")
+    private let queue = DispatchQueue(label: "nuzzlecam.parent-audio")
     // Only touched on `queue`.
     private var isRunning = false
     private var isAlarmSounding = false

@@ -11,7 +11,7 @@ final class CryClassifier: NSObject, SNResultsObserving, @unchecked Sendable {
     var onConfidence: (@Sendable (Double) -> Void)?
 
     /// The analyzer is not safe to share: every use of it goes through this queue.
-    private let queue = DispatchQueue(label: "nid.cry-classifier")
+    private let queue = DispatchQueue(label: "nuzzlecam.cry-classifier")
     // Only touched on `queue`.
     private var analyzer: SNAudioStreamAnalyzer?
     private var labels: [String] = []

@@ -51,7 +51,7 @@ public struct PairingKey: Sendable, Equatable {
     private func derive(_ purpose: String, byteCount: Int) -> Data {
         let key = HKDF<SHA256>.deriveKey(
             inputKeyMaterial: SymmetricKey(data: rawValue),
-            salt: Data("nid/v1".utf8),
+            salt: Data("nuzzlecam/v1".utf8),
             info: Data(purpose.utf8),
             outputByteCount: byteCount
         )

@@ -31,7 +31,7 @@ public enum PairingCredential: Sendable, Equatable {
 public struct PairingInvitation: Sendable, Equatable {
     public static let codeLength = 6
     static let tokenByteCount = 16
-    private static let scheme = "nid"
+    private static let scheme = "nuzzlecam"
     private static let host = "pair"
     private static let version = "1"
 

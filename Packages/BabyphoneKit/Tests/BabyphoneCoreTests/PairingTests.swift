@@ -25,8 +25,8 @@ import TestSupport
 
     @Test func ignoresForeignQRCodes() {
         #expect(PairingInvitation.credential(fromQRPayload: "https://example.com") == nil)
-        #expect(PairingInvitation.credential(fromQRPayload: "nid://pair?v=2&t=AAAA") == nil)
-        #expect(PairingInvitation.credential(fromQRPayload: "nid://pair?v=1&t=AAAA") == nil)
+        #expect(PairingInvitation.credential(fromQRPayload: "nuzzlecam://pair?v=2&t=AAAA") == nil)
+        #expect(PairingInvitation.credential(fromQRPayload: "nuzzlecam://pair?v=1&t=AAAA") == nil)
         #expect(PairingInvitation.credential(fromQRPayload: "") == nil)
     }
 

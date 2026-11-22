@@ -6,8 +6,8 @@
 	<string>$(APP_DISPLAY_NAME)</string>
 	<key>NSBonjourServices</key>
 	<array>
-		<string>_nid-monitor._tcp</string>
-		<string>_nid-pair._tcp</string>
+		<string>_nuzzlecam._tcp</string>
+		<string>_nuzzlecam-pair._tcp</string>
 	</array>
 	<key>NSCameraUsageDescription</key>
 	<string>Côté bébé, la caméra filme la chambre pour l'appareil parent. Côté parent, elle scanne le QR code d'appairage.</string>

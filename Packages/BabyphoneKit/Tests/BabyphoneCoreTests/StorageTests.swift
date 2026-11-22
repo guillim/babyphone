@@ -98,7 +98,7 @@ import TestSupport
     @Test func databaseReopensWithItsContent() async throws {
         let url = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString)
-            .appendingPathComponent("nid.sqlite")
+            .appendingPathComponent("nuzzlecam.sqlite")
         defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
 
         try await SettingsStore(database: try AppDatabase(url: url)).set("Chambre", for: .roomName)

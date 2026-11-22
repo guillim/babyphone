@@ -3,10 +3,10 @@ import XCTest
 /// Runs a whole session between two devices: this test drives the parent unit in
 /// one simulator while a baby unit runs in another.
 ///
-/// The baby unit has no test runner. Started with `NID_TEST_SHARED_DIR`, it
+/// The baby unit has no test runner. Started with `NUZZLECAM_TEST_SHARED_DIR`, it
 /// monitors by itself and reports its progress through files in that folder, where
 /// this test also finds the pairing code. The test gets the same folder through
-/// `NID_SHARED_DIR`. Without it the test is skipped. See the CI workflow.
+/// `NUZZLECAM_SHARED_DIR`. Without it the test is skipped. See the CI workflow.
 final class TwoDeviceTests: AppTestCase {
     /// How long to wait for something on this screen.
     private let step: TimeInterval = 60
@@ -14,7 +14,7 @@ final class TwoDeviceTests: AppTestCase {
     private let handover: TimeInterval = 150
 
     private func sharedFolder() throws -> URL {
-        let path = ProcessInfo.processInfo.environment["NID_SHARED_DIR"]
+        let path = ProcessInfo.processInfo.environment["NUZZLECAM_SHARED_DIR"]
         try XCTSkipIf(path == nil, "Needs a baby unit in a second simulator and a shared folder.")
         return URL(fileURLWithPath: path ?? "")
     }

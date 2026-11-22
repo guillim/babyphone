@@ -10,7 +10,7 @@ class AppTestCase: XCTestCase {
         continueAfterFailure = false
         let app = XCUIApplication()
         app.launchArguments = ["-AppleLanguages", "(fr)", "-AppleLocale", "fr_FR"]
-        app.launchEnvironment["NID_UI_TEST_STATE"] = state
+        app.launchEnvironment["NUZZLECAM_UI_TEST_STATE"] = state
         app.launch()
         return app
     }

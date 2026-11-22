@@ -6,11 +6,11 @@ import Foundation
 /// A two-device session needs both apps running at once, and a UI test can only
 /// drive one simulator. So in that session the baby unit runs without a test
 /// runner: it starts monitoring by itself and tells the test what happens through
-/// small files in a folder both simulators can see, named by `NID_TEST_SHARED_DIR`.
+/// small files in a folder both simulators can see, named by `NUZZLECAM_TEST_SHARED_DIR`.
 /// None of this exists in a release build.
 @MainActor
 enum TestHarness {
-    private static let folder = ProcessInfo.processInfo.environment["NID_TEST_SHARED_DIR"].map { URL(fileURLWithPath: $0) }
+    private static let folder = ProcessInfo.processInfo.environment["NUZZLECAM_TEST_SHARED_DIR"].map { URL(fileURLWithPath: $0) }
 
     /// Whether this launch is the baby side of a two-device session.
     static var isActive: Bool { folder != nil }

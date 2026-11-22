@@ -6,18 +6,18 @@ import Foundation
 /// Names and transport settings of the two Bonjour services the app uses.
 enum LocalTransport {
     /// Advertised by a baby unit while it monitors. Signaling for the paired parent unit.
-    static let monitorService = "_nid-monitor._tcp"
+    static let monitorService = "_nuzzlecam._tcp"
     /// Advertised by a baby unit while its pairing screen is open.
-    static let pairingService = "_nid-pair._tcp"
+    static let pairingService = "_nuzzlecam-pair._tcp"
     /// Bonjour TXT key carrying the pair's tag, so a parent unit only contacts its own baby unit.
     static let tagKey = "tag"
 
-    static let queue = DispatchQueue(label: "nid.local-network")
+    static let queue = DispatchQueue(label: "nuzzlecam.local-network")
 
     /// TLS secured by the pairing key: only the paired phone can complete the handshake.
     static func monitorParameters(key: PairingKey) -> NWParameters {
         let tls = NWProtocolTLS.Options()
-        let identity = Data("nid-monitor".utf8)
+        let identity = Data("nuzzlecam-monitor".utf8)
         let secret = key.localTransportKey.withUnsafeBytes { DispatchData(bytes: $0) }
         let hint = identity.withUnsafeBytes { DispatchData(bytes: $0) }
         sec_protocol_options_add_pre_shared_key(tls.securityProtocolOptions, secret as __DispatchData, hint as __DispatchData)

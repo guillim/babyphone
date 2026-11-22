@@ -26,7 +26,7 @@ final class NetworkStatus: @unchecked Sendable {
             lock.withLock { current = kind }
             onChange()
         }
-        monitor.start(queue: DispatchQueue(label: "nid.network-status"))
+        monitor.start(queue: DispatchQueue(label: "nuzzlecam.network-status"))
     }
 
     func stop() {

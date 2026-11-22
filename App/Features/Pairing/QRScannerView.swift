@@ -62,7 +62,7 @@ struct QRScannerView: UIViewRepresentable {
         let session = AVCaptureSession()
         private let onScan: @MainActor (String) -> Void
         /// Starting and stopping a capture session blocks, so it stays off the main thread.
-        private let queue = DispatchQueue(label: "nid.qr-scanner")
+        private let queue = DispatchQueue(label: "nuzzlecam.qr-scanner")
 
         init(onScan: @escaping @MainActor (String) -> Void) {
             self.onScan = onScan

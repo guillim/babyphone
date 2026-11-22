@@ -30,7 +30,7 @@ final class RoomAudio: @unchecked Sendable {
     private let whiteNoiseBuffer: AVAudioPCMBuffer?
     /// Every use of the engine goes through this queue: system notifications and the
     /// watchdog arrive on their own threads, and the engine is not safe to share.
-    private let queue = DispatchQueue(label: "nid.room-audio")
+    private let queue = DispatchQueue(label: "nuzzlecam.room-audio")
     private let lock = NSLock()
     private var lastMeasurement = Date()
     // Only touched on `queue`.

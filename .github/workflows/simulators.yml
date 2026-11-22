@@ -59,7 +59,7 @@ jobs:
             # iPad model names change with every Xcode: take one this Xcode already set up.
             device=$(xcrun simctl list devices available | grep -E '^ +iPad' | head -1 | grep -oE '[0-9A-F-]{36}')
           else
-            device=$(xcrun simctl create nid-screens "${{ matrix.model }}")
+            device=$(xcrun simctl create nuzzlecam-screens "${{ matrix.model }}")
           fi
           # Permissions are granted ahead of time, so no alert interrupts the tests.
           Scripts/start-simulator.sh "$device" "$APP"
@@ -119,14 +119,14 @@ jobs:
       # a current iPhone and the parent unit on the smallest one.
       - name: Start the baby unit
         run: |
-          baby=$(xcrun simctl create nid-baby "iPhone 17")
+          baby=$(xcrun simctl create nuzzlecam-baby "iPhone 17")
           echo "BABY=$baby" >> "$GITHUB_ENV"
           # Permissions are granted ahead of time, so no alert interrupts the session.
           Scripts/start-simulator.sh "$baby" "$APP"
           Scripts/start-baby-unit.sh "$baby" "$APP" "$RUNNER_TEMP/session-1"
       - name: Start the parent unit's simulator
         run: |
-          parent=$(xcrun simctl create nid-parent "iPhone SE (3rd generation)")
+          parent=$(xcrun simctl create nuzzlecam-parent "iPhone SE (3rd generation)")
           echo "PARENT=$parent" >> "$GITHUB_ENV"
           Scripts/start-simulator.sh "$parent" "$APP"
       - name: Pair, connect and monitor

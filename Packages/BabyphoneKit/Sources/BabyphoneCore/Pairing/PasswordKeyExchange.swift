@@ -22,7 +22,7 @@ import Crypto
 /// (whether its generator lies on the curve or on its twist). The code is
 /// discarded after pairing and the derived key is unaffected.
 enum PasswordKeyExchange {
-    static let protocolLabel = "nid-pake-v1"
+    static let protocolLabel = "nuzzlecam-pake-v1"
 
     struct Share {
         fileprivate let scalar: Curve25519.KeyAgreement.PrivateKey

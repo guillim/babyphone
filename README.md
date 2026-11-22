@@ -2,7 +2,7 @@
 
 A baby monitor made of the iPhones and iPads you already own, and nothing else. One device stays in the baby's room, and up to two others stay with the parents. Picture and sound go straight from one device to the other. There is no server, no relay and no account.
 
-"NuzzleCam" is a working name. It is set in one place, `Config/App.xcconfig`. Identifiers the user never sees keep a short neutral prefix, `nid`: the Bonjour services, the pairing link, the log subsystem.
+The name is set in one place, `Config/App.xcconfig`. The Bonjour services, the pairing link and the log subsystem carry it too, as `nuzzlecam`.
 
 ## Build it
 
@@ -59,7 +59,7 @@ The decision numbers (D) and proposal numbers (P) are those of version 3 of the 
 
 | Topic | Choice | Where |
 | --- | --- | --- |
-| App name | "NuzzleCam", kept as a working name | `Config/App.xcconfig` |
+| App name | NuzzleCam | `Config/App.xcconfig` |
 | Bundle identifier | `com.guillim.babyphone` | `Config/App.xcconfig` |
 | Devices (D13) | iPhone and iPad, iOS 16 or later, both roles. iPhone in portrait, iPad in any orientation. | `Config/App.xcconfig`, `Config/Info.plist` |
 | Two parents (D11) | The baby unit keeps one key, one Bonjour service, one rendezvous record and one connection per parent. Audio-only is each parent's own choice. Night light, lullaby, white noise, low light and sensitivity are shared. | `BabyMonitorModel.swift` |
@@ -115,7 +115,7 @@ Not verified, because it needs two real iPhones:
 
 ## Before the first real night
 
-1. **Overnight test.** Run both devices for eight hours, then once more with two parents connected. In the morning, open Réglages > Diagnostic réseau on each device and export the night log. It holds one line a minute with battery, temperature and link state. A gap in the parent's lines means iOS suspended the app. For a connection that dropped, plug the device into a Mac, open Console and filter on the subsystem `nid`: every decision about the link is traced there.
+1. **Overnight test.** Run both devices for eight hours, then once more with two parents connected. In the morning, open Réglages > Diagnostic réseau on each device and export the night log. It holds one line a minute with battery, temperature and link state. A gap in the parent's lines means iOS suspended the app. For a connection that dropped, plug the device into a Mac, open Console and filter on the subsystem `nuzzlecam`: every decision about the link is traced there.
 2. **IPv6 check.** The same screen says whether the device has a public IPv6 address. Check it on your home Wi-Fi and on 4G or 5G. Without it at home, run « Tester l'ouverture d'un port » on the baby device: it says whether your router can open the IPv4 path instead.
 3. **CloudKit schema.** The record type is created automatically in the Development environment on first use. Before TestFlight, deploy the schema to Production in the CloudKit Console.
 

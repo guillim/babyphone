@@ -155,7 +155,7 @@ final class FakePortMapper: PortMapper, @unchecked Sendable {
         let service = try #require(UPnP.portMappingService(inDescription: description, at: location))
         let request = UPnP.addMappingRequest(
             to: service, externalPort: 40_000, internalAddress: "192.168.1.20", internalPort: 50_000,
-            lifetime: 3600, description: "Nid <baby>"
+            lifetime: 3600, description: "NuzzleCam <baby>"
         )
         #expect(request.method == "POST")
         #expect(request.url == service.controlURL)
@@ -164,7 +164,7 @@ final class FakePortMapper: PortMapper, @unchecked Sendable {
         #expect(body.contains("<u:AddPortMapping xmlns:u=\"urn:schemas-upnp-org:service:WANIPConnection:1\">"))
         #expect(body.contains("<NewExternalPort>40000</NewExternalPort><NewProtocol>UDP</NewProtocol><NewInternalPort>50000</NewInternalPort>"))
         #expect(body.contains("<NewInternalClient>192.168.1.20</NewInternalClient>"))
-        #expect(body.contains("<NewPortMappingDescription>Nid &lt;baby&gt;</NewPortMappingDescription>"))
+        #expect(body.contains("<NewPortMappingDescription>NuzzleCam &lt;baby&gt;</NewPortMappingDescription>"))
         #expect(body.contains("<NewLeaseDuration>3600</NewLeaseDuration>"))
 
         let delete = String(decoding: UPnP.deleteMappingRequest(to: service, externalPort: 40_000).body, as: UTF8.self)

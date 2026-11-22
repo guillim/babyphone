@@ -1,6 +1,6 @@
 // Identity and versions of the app. Everything a rename or a re-sign needs is in this file.
 
-// Name under the icon. "NuzzleCam" is a working name.
+// Name under the icon.
 APP_DISPLAY_NAME = NuzzleCam
 // Also names the CloudKit container: iCloud.<bundle identifier>.
 PRODUCT_BUNDLE_IDENTIFIER = com.guillim.babyphone

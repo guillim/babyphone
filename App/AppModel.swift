@@ -33,7 +33,7 @@ final class AppModel: ObservableObject {
             let folder = try FileManager.default.url(
                 for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: true
             )
-            database = try AppDatabase(url: folder.appendingPathComponent("Nid/nid.sqlite"))
+            database = try AppDatabase(url: folder.appendingPathComponent("NuzzleCam/nuzzlecam.sqlite"))
         } catch {
             stage = .broken
             return
@@ -98,10 +98,10 @@ final class AppModel: ObservableObject {
     }
 
     #if DEBUG
-    /// UI tests start the app in a known state, named by the `NID_UI_TEST_STATE`
+    /// UI tests start the app in a known state, named by the `NUZZLECAM_UI_TEST_STATE`
     /// environment variable: "fresh", or a role, optionally followed by "-paired".
     private func applyUITestState() async {
-        guard let state = ProcessInfo.processInfo.environment["NID_UI_TEST_STATE"] else { return }
+        guard let state = ProcessInfo.processInfo.environment["NUZZLECAM_UI_TEST_STATE"] else { return }
         await forgetPairing()
         let parts = state.split(separator: "-")
         let role = parts.first.flatMap { DeviceRole(rawValue: String($0)) }
