@@ -11,18 +11,22 @@ final class RoomAudio: @unchecked Sendable {
     /// Called about ten times a second with the room level in dBFS, on an audio thread.
     var onLevel: (@Sendable (Double) -> Void)?
 
+    /// Silence from the microphone tap for this long means the engine has stalled.
+    private static let stallDelay: TimeInterval = 3
+
     private let engine = AVAudioEngine()
     private let lullabyPlayer = AVAudioPlayerNode()
     private let lullabyBuffer: AVAudioPCMBuffer?
+    /// Every use of the engine goes through this queue: system notifications and the
+    /// watchdog arrive on their own threads, and the engine is not safe to share.
+    private let queue = DispatchQueue(label: "nid.room-audio")
     private let lock = NSLock()
+    private var lastMeasurement = Date()
+    // Only touched on `queue`.
     private var isRunning = false
     private var isLullabyPlaying = false
-    private var lastMeasurement = Date()
     private var observers: [any NSObjectProtocol] = []
     private var watchdog: (any DispatchSourceTimer)?
-
-    /// Silence from the microphone tap for this long means the engine has stalled.
-    private static let stallDelay: TimeInterval = 3
 
     init() {
         lullabyBuffer = AVAudioPCMBuffer.mono(samples: ToneSynthesizer.lullaby(sampleRate: 44_100), sampleRate: 44_100)
@@ -32,55 +36,68 @@ final class RoomAudio: @unchecked Sendable {
     }
 
     func start() throws {
-        lock.withLock { isRunning = true }
-        observers = [
-            // The engine stops by itself when the audio route or format changes, for example
-            // when WebRTC starts its own audio unit. It has to be rebuilt each time.
-            NotificationCenter.default.addObserver(
-                forName: .AVAudioEngineConfigurationChange, object: engine, queue: nil
-            ) { [weak self] _ in self?.restart() },
-            NotificationCenter.default.addObserver(
-                forName: AVAudioSession.interruptionNotification, object: nil, queue: nil
-            ) { [weak self] notification in
-                let type = notification.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt
-                if type == AVAudioSession.InterruptionType.ended.rawValue { self?.restart() }
-            },
-        ]
-        try run()
-
-        // Another audio unit taking over the microphone can stop the tap without any
-        // notification. A monitor that has gone deaf must not stay that way.
-        let watchdog = DispatchSource.makeTimerSource(queue: .global(qos: .utility))
-        watchdog.schedule(deadline: .now() + Self.stallDelay, repeating: Self.stallDelay)
-        watchdog.setEventHandler { [weak self] in
-            guard let self, Date().timeIntervalSince(lock.withLock { lastMeasurement }) > Self.stallDelay else { return }
-            restart()
+        try queue.sync {
+            try run()
+            isRunning = true
+            observers = [
+                // The engine stops by itself when the audio route or format changes, for example
+                // when WebRTC starts its own audio unit. It has to be rebuilt each time.
+                NotificationCenter.default.addObserver(
+                    forName: .AVAudioEngineConfigurationChange, object: engine, queue: nil
+                ) { [weak self] _ in self?.restart() },
+                NotificationCenter.default.addObserver(
+                    forName: AVAudioSession.interruptionNotification, object: nil, queue: nil
+                ) { [weak self] notification in
+                    let type = notification.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt
+                    if type == AVAudioSession.InterruptionType.ended.rawValue { self?.restart() }
+                },
+            ]
+            // Another audio unit taking over the microphone can stop the tap without any
+            // notification. A monitor that has gone deaf must not stay that way.
+            let watchdog = DispatchSource.makeTimerSource(queue: queue)
+            watchdog.schedule(deadline: .now() + Self.stallDelay, repeating: Self.stallDelay)
+            watchdog.setEventHandler { [weak self] in
+                guard let self, Date().timeIntervalSince(lock.withLock { lastMeasurement }) > Self.stallDelay else { return }
+                rebuild()
+            }
+            watchdog.resume()
+            self.watchdog = watchdog
         }
-        watchdog.resume()
-        self.watchdog = watchdog
     }
 
     func stop() {
-        watchdog?.cancel()
-        watchdog = nil
-        lock.withLock {
+        queue.sync {
             isRunning = false
             isLullabyPlaying = false
+            watchdog?.cancel()
+            watchdog = nil
+            observers.forEach { NotificationCenter.default.removeObserver($0) }
+            observers = []
+            lullabyPlayer.stop()
+            engine.inputNode.removeTap(onBus: 0)
+            engine.stop()
         }
-        observers.forEach { NotificationCenter.default.removeObserver($0) }
-        observers = []
-        lullabyPlayer.stop()
-        engine.inputNode.removeTap(onBus: 0)
-        engine.stop()
     }
 
     func setLullabyPlaying(_ isPlaying: Bool) {
-        lock.withLock { isLullabyPlaying = isPlaying }
-        if isPlaying {
-            playLullaby()
-        } else {
-            lullabyPlayer.stop()
+        queue.async { [self] in
+            isLullabyPlaying = isPlaying
+            if isPlaying {
+                playLullaby()
+            } else {
+                lullabyPlayer.stop()
+            }
         }
+    }
+
+    private func restart() {
+        queue.async { [weak self] in self?.rebuild() }
+    }
+
+    private func rebuild() {
+        guard isRunning else { return }
+        try? AVAudioSession.sharedInstance().setActive(true)
+        try? run()
     }
 
     private func run() throws {
@@ -90,23 +107,16 @@ final class RoomAudio: @unchecked Sendable {
         guard format.sampleRate > 0, format.channelCount > 0 else { throw Failure.microphoneUnavailable }
         input.removeTap(onBus: 0)
         input.installTap(onBus: 0, bufferSize: 4096, format: format) { [weak self] buffer, _ in
-            guard let samples = buffer.floatChannelData?[0] else { return }
+            guard let self, let samples = buffer.floatChannelData?[0] else { return }
             let level = SoundLevel.decibels(of: UnsafeBufferPointer(start: samples, count: Int(buffer.frameLength)))
-            guard let self else { return }
             lock.withLock { lastMeasurement = Date() }
             onLevel?(level)
         }
         engine.prepare()
         try engine.start()
-        if lock.withLock({ isLullabyPlaying }) {
+        if isLullabyPlaying {
             playLullaby()
         }
-    }
-
-    private func restart() {
-        guard lock.withLock({ isRunning }) else { return }
-        try? AVAudioSession.sharedInstance().setActive(true)
-        try? run()
     }
 
     private func playLullaby() {

@@ -9,7 +9,10 @@ final class ParentAudio: @unchecked Sendable {
     private let alarmPlayer = AVAudioPlayerNode()
     private let silenceBuffer = AVAudioPCMBuffer.mono(samples: [Float](repeating: 0, count: 44_100), sampleRate: 44_100)
     private let alarmBuffer = AVAudioPCMBuffer.mono(samples: ToneSynthesizer.alarm(sampleRate: 44_100), sampleRate: 44_100)
-    private let lock = NSLock()
+    /// Every use of the engine goes through this queue: system notifications arrive
+    /// on their own threads, and the engine is not safe to share.
+    private let queue = DispatchQueue(label: "nid.parent-audio")
+    // Only touched on `queue`.
     private var isRunning = false
     private var isAlarmSounding = false
     private var observers: [any NSObjectProtocol] = []
@@ -22,51 +25,59 @@ final class ParentAudio: @unchecked Sendable {
     }
 
     func start() {
-        lock.withLock { isRunning = true }
-        observers = [
-            NotificationCenter.default.addObserver(
-                forName: .AVAudioEngineConfigurationChange, object: engine, queue: nil
-            ) { [weak self] _ in self?.run() },
-            NotificationCenter.default.addObserver(
-                forName: AVAudioSession.interruptionNotification, object: nil, queue: nil
-            ) { [weak self] notification in
-                // After a phone call or an alarm, iOS leaves the session inactive. Without this the app would be suspended.
-                let type = notification.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt
-                if type == AVAudioSession.InterruptionType.ended.rawValue { self?.run() }
-            },
-        ]
-        run()
+        queue.sync {
+            isRunning = true
+            observers = [
+                NotificationCenter.default.addObserver(
+                    forName: .AVAudioEngineConfigurationChange, object: engine, queue: nil
+                ) { [weak self] _ in self?.restart() },
+                NotificationCenter.default.addObserver(
+                    forName: AVAudioSession.interruptionNotification, object: nil, queue: nil
+                ) { [weak self] notification in
+                    // After a phone call or an alarm, iOS leaves the session inactive. Without this the app would be suspended.
+                    let type = notification.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt
+                    if type == AVAudioSession.InterruptionType.ended.rawValue { self?.restart() }
+                },
+            ]
+            run()
+        }
     }
 
     func stop() {
-        lock.withLock {
+        queue.sync {
             isRunning = false
             isAlarmSounding = false
+            observers.forEach { NotificationCenter.default.removeObserver($0) }
+            observers = []
+            silencePlayer.stop()
+            alarmPlayer.stop()
+            engine.stop()
         }
-        observers.forEach { NotificationCenter.default.removeObserver($0) }
-        observers = []
-        silencePlayer.stop()
-        alarmPlayer.stop()
-        engine.stop()
     }
 
     func setAlarmSounding(_ isSounding: Bool) {
-        lock.withLock { isAlarmSounding = isSounding }
-        if isSounding {
-            play(alarmBuffer, on: alarmPlayer)
-        } else {
-            alarmPlayer.stop()
+        queue.async { [self] in
+            isAlarmSounding = isSounding
+            if isSounding {
+                play(alarmBuffer, on: alarmPlayer)
+            } else {
+                alarmPlayer.stop()
+            }
         }
     }
 
+    private func restart() {
+        queue.async { [weak self] in self?.run() }
+    }
+
     private func run() {
-        guard lock.withLock({ isRunning }) else { return }
+        guard isRunning else { return }
         try? AVAudioSession.sharedInstance().setActive(true)
         engine.prepare()
         try? engine.start()
         // A playing node is what keeps the app alive between two connections.
         play(silenceBuffer, on: silencePlayer)
-        if lock.withLock({ isAlarmSounding }) {
+        if isAlarmSounding {
             play(alarmBuffer, on: alarmPlayer)
         }
     }
