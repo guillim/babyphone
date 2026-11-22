@@ -91,6 +91,8 @@ private struct JournalRow: View {
                 .foregroundStyle(Theme.secondaryText)
         }
         .frame(minHeight: Theme.minimumTouchTarget)
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier("journal.event.\(event.kind.rawValue)")
     }
 
     private var title: LocalizedStringKey {

@@ -60,14 +60,11 @@ jobs:
     runs-on: macos-26
     steps:
       - uses: actions/checkout@v5
-      - name: Pick the smallest supported iPhone
+      - name: Create the smallest supported iPhone
         run: |
-          # Every screen must fit an iPhone SE. Fall back to any iPhone if the image has none.
-          device=$(xcrun simctl list devices available | grep -E 'iPhone SE \(3rd generation\)' | head -1 | grep -oE '[0-9A-F-]{36}' || true)
-          if [ -z "$device" ]; then
-            device=$(xcrun simctl list devices available | grep -E 'iPhone' | head -1 | grep -oE '[0-9A-F-]{36}')
-          fi
-          xcrun simctl list devices available | grep "$device"
+          # Every screen must fit an iPhone SE. Fall back to any iPhone if this Xcode has none.
+          device=$(xcrun simctl create nid-small "iPhone SE (3rd generation)" || xcrun simctl create nid-small "iPhone 17")
+          xcrun simctl list devices | grep "$device"
           echo "DEVICE=$device" >> "$GITHUB_ENV"
       - name: Walk the screens
         run: |
@@ -76,7 +73,7 @@ jobs:
             -project Babyphone.xcodeproj \
             -scheme Babyphone \
             -destination "id=$DEVICE" \
-            -only-testing:BabyphoneUITests \
+            -only-testing:BabyphoneUITests/SmokeTests \
             -resultBundlePath Screens.xcresult \
             -skipPackagePluginValidation \
             | xcbeautify --quiet --renderer github-actions
@@ -98,3 +95,72 @@ jobs:
         with:
           name: screenshots
           path: Screenshots
+
+  two-phones:
+    name: Two phones, end to end
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v5
+      - name: Create two simulators
+        run: |
+          baby=$(xcrun simctl create nid-baby "iPhone 17")
+          parent=$(xcrun simctl create nid-parent "iPhone SE (3rd generation)" || xcrun simctl create nid-parent "iPhone 17")
+          xcrun simctl boot "$baby"
+          xcrun simctl boot "$parent"
+          xcrun simctl list devices | grep -E "nid-"
+          echo "BABY=$baby" >> "$GITHUB_ENV"
+          echo "PARENT=$parent" >> "$GITHUB_ENV"
+      - name: Build
+        run: |
+          set -o pipefail
+          xcodebuild build-for-testing \
+            -project Babyphone.xcodeproj \
+            -scheme Babyphone \
+            -destination "id=$BABY" \
+            -derivedDataPath Derived \
+            -skipPackagePluginValidation \
+            | xcbeautify --quiet --renderer github-actions
+      - name: Pair, connect and monitor
+        run: |
+          # The two sides exchange the pairing code and their progress through this folder.
+          export TEST_RUNNER_NID_SHARED_DIR="$RUNNER_TEMP/two-phones"
+          mkdir -p "$TEST_RUNNER_NID_SHARED_DIR"
+          side() {
+            xcodebuild test-without-building \
+              -project Babyphone.xcodeproj \
+              -scheme Babyphone \
+              -destination "id=$1" \
+              -derivedDataPath Derived \
+              -only-testing:"BabyphoneUITests/TwoPhoneTests/$2" \
+              -resultBundlePath "$3.xcresult" > "$3.log" 2>&1
+          }
+          side "$BABY" testBabySide Baby & baby=$!
+          side "$PARENT" testParentSide Parent & parent=$!
+          status=0
+          wait $baby || status=1
+          wait $parent || status=1
+          grep -hE "error:|XCTAssert|failed|passed|Executed" Baby.log Parent.log || true
+          exit $status
+      - name: Export the screenshots
+        if: always()
+        run: |
+          xcrun xcresulttool export attachments --path Baby.xcresult --output-path Screenshots/baby || true
+          xcrun xcresulttool export attachments --path Parent.xcresult --output-path Screenshots/parent || true
+      - name: Print small copies of the screenshots
+        if: always()
+        run: |
+          cat Screenshots/*/manifest.json || true
+          for file in Screenshots/*/*.png; do
+            small="/tmp/$(basename "$file" .png).jpg"
+            sips -Z 440 -s format jpeg -s formatOptions 50 "$file" --out "$small" >/dev/null
+            echo "SHOT $(basename "$file") $(base64 -i "$small")"
+          done
+      - name: Keep the screenshots and logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: two-phones
+          path: |
+            Screenshots
+            Baby.log
+            Parent.log

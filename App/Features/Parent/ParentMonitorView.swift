@@ -107,10 +107,12 @@ struct ParentMonitorView: View {
                     title: "parent.nightLight", systemImage: "lightbulb.fill",
                     isOn: model.status?.isNightLightOn ?? false, action: model.toggleNightLight
                 )
+                .accessibilityIdentifier("parent.nightLight")
                 ToggleTile(
                     title: "parent.lullaby", systemImage: "music.note",
                     isOn: model.status?.isLullabyPlaying ?? false, action: model.toggleLullaby
                 )
+                .accessibilityIdentifier("parent.lullaby")
                 ToggleTile(
                     title: "parent.audioOnly", systemImage: "waveform",
                     isOn: !(model.status?.isVideoEnabled ?? true), action: model.toggleVideo
@@ -150,6 +152,7 @@ struct ParentMonitorView: View {
         .overlay(alignment: .topLeading) {
             if model.isConnected {
                 Badge(text: Text("parent.live \(networkName)"), systemImage: "dot.radiowaves.left.and.right")
+                    .accessibilityIdentifier("parent.live")
                     .padding(10)
             }
         }

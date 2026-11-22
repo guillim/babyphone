@@ -59,6 +59,7 @@ struct Badge: View {
         .padding(.vertical, 6)
         .background(.black.opacity(0.55), in: Capsule())
         .overlay(Capsule().stroke(tint.opacity(0.4)))
+        .accessibilityElement(children: .combine)
     }
 }
 

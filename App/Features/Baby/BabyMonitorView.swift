@@ -76,6 +76,7 @@ struct BabyMonitorView: View {
                     Text(isParentConnected ? "baby.parent.connected" : "baby.parent.waiting")
                         .font(.subheadline)
                         .foregroundStyle(isParentConnected ? Theme.status : Theme.secondaryText)
+                        .accessibilityIdentifier(isParentConnected ? "baby.parentConnected" : "baby.parentWaiting")
                 }
                 .padding(.top, 8)
 

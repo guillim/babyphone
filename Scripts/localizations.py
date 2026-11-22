@@ -22,7 +22,7 @@ FAMILIES = {
 # A key is lowercase words joined by dots, optionally followed by interpolations.
 KEY = re.compile(r'"([a-z][A-Za-z0-9]*)((?:\.[A-Za-z0-9]+)+)((?: \\\([^"]*\))*)"')
 # Accessibility identifiers share the dotted shape but are never shown.
-IDENTIFIER = re.compile(r'accessibilityIdentifier\("[^"]*"\)')
+IDENTIFIER = re.compile(r'accessibilityIdentifier\(.*')
 
 
 def keys_in_code():
