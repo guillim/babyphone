@@ -4,11 +4,13 @@ import Security
 
 /// Stores the pairing key in the Keychain of this phone only.
 enum PairingKeychain {
-    private static let query: [CFString: Any] = [
-        kSecClass: kSecClassGenericPassword,
-        kSecAttrService: "nid.pairing",
-        kSecAttrAccount: "pairing-key",
-    ]
+    private static var query: [CFString: Any] {
+        [
+            kSecClass: kSecClassGenericPassword,
+            kSecAttrService: "nid.pairing",
+            kSecAttrAccount: "pairing-key",
+        ]
+    }
 
     static func load() -> PairingKey? {
         var item: CFTypeRef?

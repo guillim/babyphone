@@ -49,7 +49,7 @@ final class RoomAudio: @unchecked Sendable {
             isRunning = false
             isLullabyPlaying = false
         }
-        observers.forEach(NotificationCenter.default.removeObserver)
+        observers.forEach { NotificationCenter.default.removeObserver($0) }
         observers = []
         lullabyPlayer.stop()
         engine.inputNode.removeTap(onBus: 0)

@@ -1,3 +1,4 @@
+@preconcurrency import AVFoundation
 import BabyphoneCore
 import Foundation
 @preconcurrency import WebRTC

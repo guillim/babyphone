@@ -43,7 +43,7 @@ final class ParentAudio: @unchecked Sendable {
             isRunning = false
             isAlarmSounding = false
         }
-        observers.forEach(NotificationCenter.default.removeObserver)
+        observers.forEach { NotificationCenter.default.removeObserver($0) }
         observers = []
         silencePlayer.stop()
         alarmPlayer.stop()

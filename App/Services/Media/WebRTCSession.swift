@@ -22,7 +22,9 @@ final class WebRTCSession: NSObject, PeerSession, @unchecked Sendable {
 
     let events: AsyncStream<PeerSessionEvent>
 
-    private static let noConstraints = RTCMediaConstraints(mandatoryConstraints: nil, optionalConstraints: nil)
+    private static var noConstraints: RTCMediaConstraints {
+        RTCMediaConstraints(mandatoryConstraints: nil, optionalConstraints: nil)
+    }
     /// Gathering host candidates takes milliseconds. This only guards against a stack that never reports completion.
     private static let gatheringTimeout: Duration = .seconds(2)
 
