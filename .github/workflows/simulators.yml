@@ -21,8 +21,7 @@ concurrency:
   group: simulators-${{ github.sha }}
 
 # Each job builds first and boots afterwards: a simulator that is starting up
-# slows a build several times over. None waits for the boot to finish either:
-# the tests wait for as much of it as they need.
+# slows a build several times over. The tests start once the boot is over.
 jobs:
   screens:
     name: Screens (${{ matrix.device }})
@@ -60,18 +59,27 @@ jobs:
       - name: Walk the screens
         run: |
           set -o pipefail
-          xcodebuild test-without-building \
-            -project Babyphone.xcodeproj \
-            -scheme BabyphoneUITests \
-            -destination "id=$DEVICE" \
-            -derivedDataPath Derived \
-            -only-testing:BabyphoneUITests/SmokeTests \
-            -retry-tests-on-failure -test-iterations 2 \
-            -resultBundlePath Screens.xcresult \
-            | xcbeautify --quiet --renderer github-actions
+          walk() {
+            xcodebuild test-without-building \
+              -project Babyphone.xcodeproj \
+              -scheme BabyphoneUITests \
+              -destination "id=$DEVICE" \
+              -derivedDataPath Derived \
+              -only-testing:BabyphoneUITests/SmokeTests \
+              -retry-tests-on-failure -test-iterations 2 \
+              -resultBundlePath "Screens-$1.xcresult" \
+              | xcbeautify --quiet --renderer github-actions
+          }
+          # A build machine sometimes fails to launch apps in a simulator for a while.
+          # One more walk, a little later, settles it.
+          walk 1 || walk 2
       - name: Export the screenshots
         if: always()
-        run: xcrun xcresulttool export attachments --path Screens.xcresult --output-path Screenshots
+        run: |
+          mkdir -p Screenshots
+          for result in Screens-*.xcresult; do
+            xcrun xcresulttool export attachments --path "$result" --output-path "Screenshots/${result%.xcresult}" || true
+          done
       - name: Keep the screenshots
         if: always()
         uses: actions/upload-artifact@v4
