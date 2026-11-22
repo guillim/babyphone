@@ -1,29 +1,31 @@
 # Nid
 
-An iPhone baby monitor made of two phones and nothing else. One iPhone stays in the baby's room, the other stays with the parent. Picture and sound go straight from one phone to the other. There is no server, no relay and no account.
+A baby monitor made of the iPhones and iPads you already own, and nothing else. One device stays in the baby's room, and up to two others stay with the parents. Picture and sound go straight from one device to the other. There is no server, no relay and no account.
 
 "Nid" is a working name. It is set in one place, `Config/App.xcconfig`.
 
 ## Build it
 
-You need Xcode 16 or later, two iPhones on iOS 16 or later, and a paid Apple Developer account (CloudKit requires one).
+You need Xcode 16 or later, two iPhones or iPads on iOS 16 or later, and a paid Apple Developer account (CloudKit requires one).
 
 1. Copy `Config/Local.xcconfig.example` to `Config/Local.xcconfig` and put your Team ID in it.
 2. If `com.guillim.babyphone` is not the bundle identifier you want, change it in `Config/App.xcconfig`.
 3. Open `Babyphone.xcodeproj`. Xcode fetches the two dependencies (WebRTC and GRDB) on first open.
-4. Select the `Babyphone` scheme, choose an iPhone, and run. Do the same on the second iPhone.
+4. Select the `Babyphone` scheme, choose a device, and run. Do the same on the second device.
 
 Xcode creates the iCloud container `iCloud.<bundle identifier>` the first time it signs the app. Simulators have no camera: two of them can pair and connect, with sound only and no picture.
 
 ## Use it
 
-1. On each phone, pick a side: « Côté bébé » or « Côté parent ».
-2. Pair them once, side by side: the parent phone scans the QR code shown on the baby phone, or you type its six digits. Pairing starts on the sixth digit.
-3. On the baby phone, tap « Démarrer la surveillance ». The parent phone connects by itself.
+1. On each device, pick a side: « Côté bébé » or « Côté parent ».
+2. Pair them once, side by side: the parent device scans the QR code shown on the baby device, or you type its six digits. Pairing starts on the sixth digit.
+3. On the baby device, tap « Démarrer la surveillance ». The parent device connects by itself.
 
-Leave the baby phone plugged in and unlocked. Its screen dims by itself. If you lock it, iOS cuts the camera: the sound continues and the parent phone shows that the picture is off.
+To add a second parent, open Réglages on the baby device while monitoring is stopped and choose « Ajouter un parent ». Each parent is paired separately and can be removed separately.
 
-At home the phones find each other over Wi-Fi with Bonjour. This needs neither internet nor iCloud. Away from home they find each other through iCloud, then connect directly over IPv6.
+Leave the baby device plugged in and unlocked. Its screen dims by itself. If you lock it, iOS cuts the camera: the sound continues and the parent device shows that the picture is off.
+
+At home the devices find each other over Wi-Fi with Bonjour. This needs neither internet nor iCloud. Away from home they find each other through iCloud, then connect directly over IPv6.
 
 ## How it is organised
 
@@ -38,67 +40,77 @@ At home the phones find each other over Wi-Fi with Bonjour. This needs neither i
 | `UITests` | Launches the app in a simulator on the smallest supported iPhone and walks every screen. Also runs both sides in two simulators through a whole session. |
 | `Config` | Bundle identifier, versions, Info.plist, entitlements. |
 
-The connection logic lives in the core package behind three small protocols (`PeerSession`, `LocalSignalingListening` and `LocalSignalingConnecting`, `RendezvousProvider`). The tests run both phones' logic against each other over a simulated network.
+The connection logic lives in the core package behind three small protocols (`PeerSession`, `LocalSignalingListening` and `LocalSignalingConnecting`, `RendezvousProvider`). The tests run both devices' logic against each other over a simulated network.
 
-`RendezvousProvider` is the single interface for finding the other phone remotely: publish my record, read the peer's. CloudKit implements it today. Another provider, such as a DHT, only has to implement the same two calls.
+`RendezvousProvider` is the single interface for finding the other device remotely: publish my record, read the peer's. CloudKit implements it today. Another provider, such as a DHT, only has to implement the same two calls.
 
-## How the phones connect
+## How the devices connect
 
-- **Pairing.** The two phones run a password-authenticated key exchange over the local link. The six-digit code or the QR token only proves that the phones are next to each other. The key they end up sharing has 256 bits, lives in the Keychain, and never travels.
-- **Same network.** The baby phone advertises a Bonjour service. Signaling runs over TLS secured by the pairing key, so only the paired phone gets through.
-- **Different networks.** The baby phone writes one small record to the CloudKit public database: its current addresses, encrypted with the pairing key, under an identifier derived from that key. The parent phone reads it and writes its own. Then both send to each other at the same time, which opens the firewalls on each side. Nothing else goes through CloudKit.
-- **Media.** WebRTC with an empty ICE server list: host candidates only, so no STUN lookup and no TURN relay. Media is encrypted between the two phones.
-- **No direct path.** There is no relay. The parent phone shows « Connexion directe impossible ».
+- **Pairing.** The two devices run a password-authenticated key exchange over the local link. The six-digit code or the QR token only proves that the devices are next to each other. The key they end up sharing has 256 bits, lives in the Keychain, and never travels.
+- **Same network.** The baby device advertises a Bonjour service. Signaling runs over TLS secured by the pairing key, so only the paired device gets through.
+- **Different networks.** The baby device writes one small record to the CloudKit public database: its current addresses, encrypted with the pairing key, under an identifier derived from that key. The parent device reads it and writes its own. Then both send to each other at the same time, which opens the firewalls on each side. Nothing else goes through CloudKit.
+- **Media.** WebRTC with an empty ICE server list: host candidates only, so no STUN lookup and no TURN relay. Media is encrypted between the two devices.
+- **No direct path.** There is no relay. The parent device shows « Connexion directe impossible ».
 
 ## Choices made while building
 
-These answer the open questions and proposals of the handoff brief. Each one is a single place to change.
+The decision numbers (D) and proposal numbers (P) are those of version 3 of the handoff brief. Each choice is a single place to change.
 
 | Topic | Choice | Where |
 | --- | --- | --- |
 | App name | "Nid", kept as a working name | `Config/App.xcconfig` |
 | Bundle identifier | `com.guillim.babyphone` | `Config/App.xcconfig` |
-| Minimum iOS | 16.0, so an iPhone 8 or later can serve as the baby phone | `Config/App.xcconfig` |
-| Strong key under the 6-digit code (P1) | Yes. The parent still types six digits. | `Pairing/PasswordKeyExchange.swift` |
-| Alerts (P2) | The live audio link is the main channel, with a local alarm when the link is lost. No CloudKit push. | `ParentMonitorModel.swift` |
-| Network diagnostics screen (P3) | Yes: iCloud status, public IPv6, addresses in use, export of the night log | `DiagnosticsView.swift` |
-| Wi-Fi first, remote later (P5) | Both are built. Wi-Fi works alone when iCloud is missing. | |
-| Router port opening for IPv4 (P6) | Not built. Remote use needs IPv6 on both sides. | |
-| Cry detection (P7) | Not built, as planned for V1 | |
+| Devices (D13) | iPhone and iPad, iOS 16 or later, both roles. iPhone in portrait, iPad in any orientation. | `Config/App.xcconfig`, `Config/Info.plist` |
+| Two parents (D11) | The baby unit keeps one key, one Bonjour service, one rendezvous record and one connection per parent. Audio-only is each parent's own choice. Night light, lullaby, white noise, low light and sensitivity are shared. | `BabyMonitorModel.swift` |
+| Strong key under the code (D21) | A password-authenticated key exchange. The parent still types six digits. | `Pairing/PasswordKeyExchange.swift` |
+| Reconnection (D14) | Each side signals every 2 s. After 10 s of silence the link is dropped and rebuilt. A picture that stops arriving for 15 s while the link answers also triggers a reconnection. | `Link/PeerLink.swift`, `ParentMonitorModel.swift` |
+| Alerts (D18) | A chime for noise and power alerts, and a looping alarm 10 s after an unrecovered link loss. Both play through the app's own audio, so they are heard on silent and in a Focus mode. Notifications only add to this when the app is in the background. | `Audio/ParentAudio.swift` |
+| Noise calibration (D20) | The detector follows the room's steady background level. The presets set how far above it a sound must rise: 8, 15 or 24 dB. | `Monitoring/NoiseDetector.swift` |
+| Power alert (D15) | When the charger is removed, and when the battery falls under 20 % unplugged | `Monitoring/PowerWatch.swift` |
+| Low light and zoom (D16) | Low light slows the camera to 5 frames a second for longer exposures. Zoom is done on the parent's screen, up to 4 times, so each parent zooms independently. | `MediaEngine.swift`, `ParentMonitorView.swift` |
+| White noise (D17) | Synthesised by the app, for 15, 30 or 60 minutes | `Audio/ToneSynthesizer.swift` |
+| Failure screen (D19) | Guided fixes: personal hotspot, or mobile data on both sides | `ConnectionFailedView.swift` |
+| Diagnostic view (P1) | Built: iCloud status, public IPv6, addresses, last signal, path in use, manual reconnection, export of the night log | `DiagnosticsView.swift` |
+| Wi-Fi first, remote later (P3) | Both are built. Wi-Fi works alone when iCloud is missing. | |
+| Router port opening for IPv4 (P4) | Not built. Remote use needs IPv6 on both sides. | |
+| Cry detection (P5) | Not built, as planned for V1 | |
+| Alarm volume, mute and snooze (P6) | The alarm can be silenced. Its volume follows the device's. No snooze. | |
+| Alerts-only mode through iCloud (P7) | Not built | |
 | Audio clips in the journal | Not built. They were only in the mockups. | |
-| Screen 6 copy | The promise that noise alerts keep arriving by notification is removed: without a link there is no reliable channel. | |
-| Night light | Shines from the side of the camera in use: the torch with the rear camera, the screen with the front one | `BabyMonitorModel.swift` |
+| Night light | Shines from the side of the camera in use: the torch with the rear camera, the screen with the front one or on a device without a torch | `BabyMonitorModel.swift` |
 | Lullaby | Brahms' lullaby, synthesised by the app, so no audio file ships | `Audio/ToneSynthesizer.swift` |
-| Peer-to-peer Wi-Fi | Used for pairing, so two phones can pair without a shared network. Not used for media: WebRTC does not send over it. | `LocalTransport.swift` |
+| Peer-to-peer Wi-Fi | Used for pairing, so two devices can pair without a shared network. Not used for media: WebRTC does not send over it. | `LocalTransport.swift` |
 
 ## What is verified and what is not
 
 Verified by automated tests:
 
 - Pairing and its failure cases, the wire formats, noise detection, the journal and its sync, the encrypted rendezvous records.
-- The connection logic of both phones against each other over a simulated network: local, remote, reconnection, every failure reason.
+- The connection logic of both devices against each other over a simulated network: local, remote, reconnection, every failure reason.
 - The real WebRTC stack: two peer connections with an empty server list connect directly and exchange messages, including with an offer made long before its answer.
-- The real secured channel: frames cross TLS keyed by the pairing key, and a phone with another key is refused.
-- Both phones end to end over real TLS and real WebRTC, on the local path and through the rendezvous.
-- The app itself in a simulator: it starts, every screen appears, and the parent's controls fit an iPhone SE without scrolling.
-- The two apps together, in two simulators: pairing with the six-digit code, Bonjour discovery and connection over the local network, night light and lullaby commands over the live link, the journal sync, and a deliberate stop.
+- The real secured channel: frames cross TLS keyed by the pairing key, and a device with another key is refused.
+- Both devices end to end over real TLS and real WebRTC, on the local path and through the rendezvous, and two parents connected to the same baby unit at once.
+- The app itself in a simulator, on an iPhone SE and on an iPad: it starts, every screen appears, and the parent's controls fit an iPhone SE without scrolling.
+- The two apps together, in two simulators: pairing with the six-digit code, Bonjour discovery and connection over the local network, night light, lullaby, white noise and low-light commands over the live link, the journal sync, and a deliberate stop.
 
 The whole app compiles in CI with the oldest and the newest supported Xcode.
 
 Not verified, because it needs two real iPhones:
 
 - Everything that touches hardware or an account: camera, microphone, speaker, torch, CloudKit.
+- Two parents on real devices. The connections are tested, the two encodes on an old device are not.
+- The low-light mode: how much it brightens the picture depends on each camera.
 - Peer-to-peer Wi-Fi during pairing, which simulators do not have.
 - The parent app staying alive in the background for a whole night, including after a phone call.
 - The direct IPv6 connection through real home routers and mobile networks.
 - Sound levels. The three noise thresholds in `Sensitivity.swift` are starting values to calibrate.
 - The sound meter and the lullaby sharing the microphone and speaker with WebRTC.
-- Audio routing on real devices. Both phones use the audio configuration WebRTC is built for (play and record, voice processing, loudspeaker). On the parent phone iOS therefore shows its microphone indicator while connected, although the voice is only sent while the talk button is held. Switching the parent to playback only is a possible later refinement, in `AudioSessionController.swift`.
+- Audio routing on real devices. Both devices use the audio configuration WebRTC is built for (play and record, voice processing, loudspeaker). On the parent device iOS therefore shows its microphone indicator while connected, although the voice is only sent while the talk button is held. Switching the parent to playback only is a possible later refinement, in `AudioSessionController.swift`.
 
 ## Before the first real night
 
-1. **Overnight test.** Run both phones for eight hours. In the morning, open Réglages > Diagnostic réseau on each phone and export the night log. It holds one line a minute with battery, temperature and link state. A gap in the parent's lines means iOS suspended the app.
-2. **IPv6 check.** The same screen says whether the phone has a public IPv6 address. Check it on your home Wi-Fi and on 4G or 5G. Remote use needs it on both sides.
+1. **Overnight test.** Run both devices for eight hours, then once more with two parents connected. In the morning, open Réglages > Diagnostic réseau on each device and export the night log. It holds one line a minute with battery, temperature and link state. A gap in the parent's lines means iOS suspended the app.
+2. **IPv6 check.** The same screen says whether the device has a public IPv6 address. Check it on your home Wi-Fi and on 4G or 5G. Remote use needs it on both sides.
 3. **CloudKit schema.** The record type is created automatically in the Development environment on first use. Before TestFlight, deploy the schema to Production in the CloudKit Console.
 
 ## Tests
