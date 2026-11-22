@@ -2,7 +2,7 @@ name: Simulators
 
 # Runs the app itself, in simulators. A build machine needs several minutes to
 # start one simulator from cold and much longer for two, so these checks take
-# between ten and twenty-five minutes. They are kept out of the CI workflow,
+# between ten and thirty minutes. They are kept out of the CI workflow,
 # which answers in five: they run every night, on demand from the Actions tab,
 # and when the tests they run are changed.
 on:
@@ -26,7 +26,9 @@ jobs:
   screens:
     name: Screens (${{ matrix.device }})
     runs-on: macos-26
-    timeout-minutes: 20
+    timeout-minutes: 25
+    env:
+      APP: Derived/Build/Products/Debug-iphonesimulator/Babyphone.app
     strategy:
       fail-fast: false
       matrix:
@@ -54,7 +56,7 @@ jobs:
             device=$(xcrun simctl create nid-screens "iPhone SE (3rd generation)")
           fi
           # Permissions are granted ahead of time, so no alert interrupts the tests.
-          Scripts/start-simulator.sh "$device"
+          Scripts/start-simulator.sh "$device" "$APP"
           echo "DEVICE=$device" >> "$GITHUB_ENV"
       - name: Walk the screens
         run: |
@@ -90,7 +92,7 @@ jobs:
   two-devices:
     name: Two devices, end to end
     runs-on: macos-26
-    timeout-minutes: 40
+    timeout-minutes: 45
     env:
       APP: Derived/Build/Products/Debug-iphonesimulator/Babyphone.app
     steps:
@@ -107,34 +109,33 @@ jobs:
             ARCHS=arm64 ONLY_ACTIVE_ARCH=NO \
             | xcbeautify --quiet --renderer github-actions
       # One simulator at a time. Two that start together starve a build machine,
-      # and the pair then needs a quarter of an hour or more. Both are the smallest
-      # iPhone, which is also the lightest to run. Neither start waits for the end
-      # of the boot: the next step checks by itself that each app is up.
+      # and the pair then needs a quarter of an hour or more. The baby unit runs on
+      # a current iPhone and the parent unit on the smallest one.
       - name: Start the baby unit
         run: |
-          baby=$(xcrun simctl create nid-baby "iPhone SE (3rd generation)")
+          baby=$(xcrun simctl create nid-baby "iPhone 17")
           echo "BABY=$baby" >> "$GITHUB_ENV"
           # Permissions are granted ahead of time, so no alert interrupts the session.
-          Scripts/start-simulator.sh "$baby" --no-wait
+          Scripts/start-simulator.sh "$baby" "$APP"
           Scripts/start-baby-unit.sh "$baby" "$APP" "$RUNNER_TEMP/session-1"
       - name: Start the parent unit's simulator
         run: |
           parent=$(xcrun simctl create nid-parent "iPhone SE (3rd generation)")
           echo "PARENT=$parent" >> "$GITHUB_ENV"
-          Scripts/start-simulator.sh "$parent" --no-wait
+          Scripts/start-simulator.sh "$parent" "$APP"
       - name: Pair, connect and monitor
         run: |
           session() {
             # The test drives the parent unit, and follows the baby unit through the session folder.
             folder="$RUNNER_TEMP/session-$1"
+            status=0
             TEST_RUNNER_NID_SHARED_DIR="$folder" xcodebuild test-without-building \
               -project Babyphone.xcodeproj \
               -scheme BabyphoneUITests \
               -destination "id=$PARENT" \
               -derivedDataPath Derived \
               -only-testing:BabyphoneUITests/TwoDeviceTests \
-              -resultBundlePath "Parent-$1.xcresult" > "Parent-$1.log" 2>&1
-            status=$?
+              -resultBundlePath "Parent-$1.xcresult" > "Parent-$1.log" 2>&1 || status=$?
             grep -hE "error|XCTAssert|failed|passed|Executed" "Parent-$1.log" | cut -c1-300 || true
             ls "$folder"
             return $status

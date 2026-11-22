@@ -1,8 +1,8 @@
-# Nid
+# NuzzleCam
 
 A baby monitor made of the iPhones and iPads you already own, and nothing else. One device stays in the baby's room, and up to two others stay with the parents. Picture and sound go straight from one device to the other. There is no server, no relay and no account.
 
-"Nid" is a working name. It is set in one place, `Config/App.xcconfig`.
+"NuzzleCam" is a working name. It is set in one place, `Config/App.xcconfig`. Identifiers the user never sees keep a short neutral prefix, `nid`: the Bonjour services, the pairing link, the log subsystem.
 
 ## Build it
 
@@ -58,7 +58,7 @@ The decision numbers (D) and proposal numbers (P) are those of version 3 of the 
 
 | Topic | Choice | Where |
 | --- | --- | --- |
-| App name | "Nid", kept as a working name | `Config/App.xcconfig` |
+| App name | "NuzzleCam", kept as a working name | `Config/App.xcconfig` |
 | Bundle identifier | `com.guillim.babyphone` | `Config/App.xcconfig` |
 | Devices (D13) | iPhone and iPad, iOS 16 or later, both roles. iPhone in portrait, iPad in any orientation. | `Config/App.xcconfig`, `Config/Info.plist` |
 | Two parents (D11) | The baby unit keeps one key, one Bonjour service, one rendezvous record and one connection per parent. Audio-only is each parent's own choice. Night light, lullaby, white noise, low light and sensitivity are shared. | `BabyMonitorModel.swift` |
@@ -129,6 +129,6 @@ Two workflows run on GitHub:
 | Workflow | When | Checks | Duration |
 | --- | --- | --- | --- |
 | `CI` | Every push | Core tests on Linux, strings, then on the oldest and newest Xcode: all package tests, the transport tests five more times, and the app build | About 5 minutes |
-| `Simulators` | Every night, on demand, and when the UI tests change | The walk through the screens on an iPhone SE and an iPad, and the two-device session | 10 minutes for the screens, 20 to 30 for the two-device session. Nearly all of it is spent starting simulators. |
+| `Simulators` | Every night, on demand, and when the UI tests change | The walk through the screens on an iPhone SE and an iPad, and the two-device session | 8 to 15 minutes for the screens, about 30 for the two-device session. Nearly all of it is spent starting simulators. |
 
 `CI` is the gate. To run `Simulators` on a commit, open the Actions tab, choose the workflow and press « Run workflow ».

@@ -4,31 +4,28 @@
 #
 # A simulator that is still booting accepts a test run and then fails it: apps
 # do not launch, taps get lost. So the wait is worth its minutes. It is limited
-# to ten: after that the tests run anyway and say what is wrong.
+# to ten. The script fails when the simulator does not accept the permissions:
+# an alert that nothing can answer would otherwise stop a test much later.
 #
-# With --no-wait the script returns as soon as the simulator accepts the
-# permissions, for a caller that checks by itself that the app is up.
-#
-# Usage: Scripts/start-simulator.sh <device identifier> [--no-wait]
+# Usage: Scripts/start-simulator.sh <device identifier> <path to the built app>
 set -u
 device=$1
-bundle=com.guillim.babyphone
+bundle=$(/usr/libexec/PlistBuddy -c "Print :CFBundleIdentifier" "$2/Info.plist") || exit 1
 
 xcrun simctl boot "$device"
 
-if [ "${2:-}" != "--no-wait" ]; then
-  xcrun simctl bootstatus "$device" > /dev/null &
-  boot=$!
-  ( sleep 600; kill "$boot" 2> /dev/null ) &
-  limit=$!
-  wait "$boot"
-  kill "$limit" 2> /dev/null
-fi
+xcrun simctl bootstatus "$device" > /dev/null &
+boot=$!
+( sleep 600; kill "$boot" 2> /dev/null ) &
+limit=$!
+wait "$boot"
+kill "$limit" 2> /dev/null
 
-for permission in camera microphone; do
-  for attempt in $(seq 1 90); do
-    xcrun simctl privacy "$device" grant "$permission" "$bundle" 2> /dev/null && break
-    sleep 2
-  done
+for attempt in $(seq 1 30); do
+  xcrun simctl privacy "$device" grant camera "$bundle" 2> /dev/null \
+    && xcrun simctl privacy "$device" grant microphone "$bundle" 2> /dev/null \
+    && exit 0
+  sleep 2
 done
-exit 0
+echo "The simulator did not accept the camera and microphone permissions."
+exit 1
