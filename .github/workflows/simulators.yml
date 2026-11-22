@@ -13,6 +13,7 @@ on:
       - "UITests/**"
       - "App/TestHarness.swift"
       - "Scripts/start-simulator.sh"
+      - "Scripts/start-baby-unit.sh"
       - ".github/workflows/simulators.yml"
   workflow_dispatch:
 
@@ -82,6 +83,8 @@ jobs:
     name: Two devices, end to end
     runs-on: macos-26
     timeout-minutes: 30
+    env:
+      APP: Derived/Build/Products/Debug-iphonesimulator/Babyphone.app
     steps:
       - uses: actions/checkout@v5
       - name: Build
@@ -95,42 +98,25 @@ jobs:
             -skipPackagePluginValidation \
             ARCHS=arm64 ONLY_ACTIVE_ARCH=NO \
             | xcbeautify --quiet --renderer github-actions
-      - name: Start two simulators
+      # One simulator at a time. Two that start together starve a build machine,
+      # and the pair then needs a quarter of an hour or more.
+      - name: Start the baby unit
         run: |
           baby=$(xcrun simctl create nid-baby "iPhone 17")
-          parent=$(xcrun simctl create nid-parent "iPhone SE (3rd generation)")
           echo "BABY=$baby" >> "$GITHUB_ENV"
+          # Permissions are granted ahead of time, so no alert interrupts the session.
+          Scripts/start-simulator.sh "$baby"
+          Scripts/start-baby-unit.sh "$baby" "$APP" "$RUNNER_TEMP/session-1"
+      - name: Start the parent unit's simulator
+        run: |
+          parent=$(xcrun simctl create nid-parent "iPhone SE (3rd generation)")
           echo "PARENT=$parent" >> "$GITHUB_ENV"
-          # Both start at once. Permissions are granted ahead of time, so no alert interrupts the session.
-          Scripts/start-simulator.sh "$baby" &
-          Scripts/start-simulator.sh "$parent" &
-          wait
+          Scripts/start-simulator.sh "$parent"
       - name: Pair, connect and monitor
         run: |
-          app=Derived/Build/Products/Debug-iphonesimulator/Babyphone.app
           session() {
-            # The baby unit runs by itself and tells the test what happens through this folder.
+            # The test drives the parent unit, and follows the baby unit through the session folder.
             folder="$RUNNER_TEMP/session-$1"
-            mkdir -p "$folder"
-            xcrun simctl terminate "$BABY" com.guillim.babyphone 2>/dev/null || true
-            # The baby unit first. Its simulator may still be starting: install and launch are
-            # retried until it accepts them, and the app shows its pairing code.
-            for attempt in $(seq 1 200); do
-              xcrun simctl install "$BABY" "$app" 2>/dev/null \
-                && SIMCTL_CHILD_NID_UI_TEST_STATE=baby SIMCTL_CHILD_NID_TEST_SHARED_DIR="$folder" \
-                  xcrun simctl launch "$BABY" com.guillim.babyphone -AppleLanguages "(fr)" -AppleLocale fr_FR \
-                && break
-              sleep 3
-            done
-            for attempt in $(seq 1 60); do
-              [ -f "$folder/code" ] && break
-              sleep 2
-            done
-            if [ ! -f "$folder/code" ]; then
-              echo "The baby unit did not start."
-              return 1
-            fi
-            # Then the test drives the parent unit in the other simulator.
             TEST_RUNNER_NID_SHARED_DIR="$folder" xcodebuild test-without-building \
               -project Babyphone.xcodeproj \
               -scheme BabyphoneUITests \
@@ -143,8 +129,9 @@ jobs:
             ls "$folder"
             return $status
           }
-          # A build machine sometimes fails to start a simulator's test runner. One more try settles it.
-          session 1 || session 2
+          # A build machine sometimes fails to start a simulator's test runner.
+          # One more try, with a baby unit started afresh, settles it.
+          session 1 || { Scripts/start-baby-unit.sh "$BABY" "$APP" "$RUNNER_TEMP/session-2" && session 2; }
       - name: Export the screenshots
         if: always()
         run: |
