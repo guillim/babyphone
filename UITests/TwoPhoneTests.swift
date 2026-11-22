@@ -76,7 +76,6 @@ final class TwoPhoneTests: AppTestCase {
         XCTAssertTrue(field.waitForExistence(timeout: step))
         let code = try XCTUnwrap(waitForFile("code", in: folder), "The baby side never showed a code")
         type(code, into: field)
-        app.buttons["pairing.submit"].tap()
 
         // Paired: the monitor appears and looks for the baby unit by itself.
         acceptSystemAlerts(within: 8)

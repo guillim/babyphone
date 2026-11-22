@@ -34,8 +34,10 @@ final class SmokeTests: AppTestCase {
         XCTAssertTrue(field.waitForExistence(timeout: timeout))
         XCTAssertFalse(submit.isEnabled)
         type("123456", into: field)
-        XCTAssertTrue(submit.isEnabled)
         attachScreenshot(named: "3-pairing-parent")
+        // Six digits start pairing by themselves. No baby unit exists here, and the app says so.
+        XCTAssertTrue(app.staticTexts["pairing.failure"].waitForExistence(timeout: timeout))
+        XCTAssertTrue(submit.isEnabled)
     }
 
     func testBabyUnitStartsOrExplainsWhyItCannot() {

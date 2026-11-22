@@ -49,7 +49,13 @@ struct ParentPairingView: View {
                     .accessibilityIdentifier("pairing.codeField")
                     .onChange(of: model.code) { newValue in
                         let digits = String(newValue.filter(\.isNumber).prefix(6))
-                        if digits != newValue { model.code = digits }
+                        if digits != newValue {
+                            model.code = digits
+                        } else if model.canSubmitCode {
+                            // The number pad has no return key and can hide the button: the sixth digit is the go-ahead.
+                            isCodeFocused = false
+                            model.submitCode(onPaired: finish)
+                        }
                     }
 
                 Button("pairing.submit") {
@@ -65,6 +71,7 @@ struct ParentPairingView: View {
                         .font(.footnote)
                         .foregroundStyle(Theme.alert)
                         .multilineTextAlignment(.center)
+                        .accessibilityIdentifier("pairing.failure")
                 }
                 Text("pairing.note")
                     .font(.footnote)
