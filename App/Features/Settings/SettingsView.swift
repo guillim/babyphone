@@ -68,6 +68,10 @@ struct SettingsView: View {
                     }
                 }
 
+                if let parentModel {
+                    ParentAlertSection(model: parentModel)
+                }
+
                 if let parentModel, parentModel.isMonitoring {
                     Section {
                         Button("settings.stopListening") {
@@ -151,5 +155,56 @@ struct SettingsView: View {
             dismiss()
             await change()
         }
+    }
+}
+
+/// One parent's choices about alerts: how loud, about what, and a pause.
+private struct ParentAlertSection: View {
+    @ObservedObject var model: ParentMonitorModel
+
+    var body: some View {
+        Section {
+            Picker("settings.alerts.volume", selection: volume) {
+                Text("settings.alerts.volume.soft").tag(AlarmVolume.soft)
+                Text("settings.alerts.volume.medium").tag(AlarmVolume.medium)
+                Text("settings.alerts.volume.loud").tag(AlarmVolume.loud)
+            }
+            .accessibilityIdentifier("settings.alerts.volume")
+            Picker("settings.alerts.trigger", selection: trigger) {
+                Text("settings.alerts.trigger.anyNoise").tag(AlertTrigger.anyNoise)
+                Text("settings.alerts.trigger.cryOnly").tag(AlertTrigger.cryOnly)
+            }
+            if model.alertPolicy.trigger == .cryOnly, model.status?.isCryDetectionActive == false {
+                Text("settings.alerts.cryUnavailable")
+                    .font(.footnote)
+                    .foregroundStyle(Theme.alert)
+            }
+            if let until = model.alertPolicy.snoozedUntil {
+                HStack {
+                    Text("parent.snooze.until \(until.formatted(date: .omitted, time: .shortened))")
+                    Spacer()
+                    Button("parent.snooze.resume", action: model.resumeAlerts)
+                        .buttonStyle(.borderless)
+                }
+            } else if model.isMonitoring {
+                Menu("settings.alerts.snooze") {
+                    ForEach(AlertPolicy.snoozeChoices, id: \.self) { minutes in
+                        Button("parent.snooze.minutes \(String(minutes))") { model.snoozeAlerts(minutes: minutes) }
+                    }
+                }
+            }
+        } header: {
+            Text("settings.alerts")
+        } footer: {
+            Text("settings.alerts.footer")
+        }
+    }
+
+    private var volume: Binding<AlarmVolume> {
+        Binding(get: { model.alertPolicy.volume }, set: { model.setAlarmVolume($0) })
+    }
+
+    private var trigger: Binding<AlertTrigger> {
+        Binding(get: { model.alertPolicy.trigger }, set: { model.setAlertTrigger($0) })
     }
 }

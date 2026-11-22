@@ -2,18 +2,33 @@ import Foundation
 
 /// Where a device's record lives in the rendezvous provider.
 public struct RendezvousSlot: Sendable, Equatable {
+    /// What a record is for. Each device has one record of each kind.
+    public enum Content: String, Sendable {
+        /// Where the device is and how to connect to it.
+        case endpoint
+        /// The baby unit's latest alerts, for a parent unit that has no direct link.
+        case alerts
+    }
+
     /// Identifier of the pair, derived from the pairing key.
     public let pairID: String
     /// The device that writes this record.
     public let role: DeviceRole
+    public let content: Content
 
-    public init(pairID: String, role: DeviceRole) {
+    public init(pairID: String, role: DeviceRole, content: Content = .endpoint) {
         self.pairID = pairID
         self.role = role
+        self.content = content
     }
 
     /// Stable name of the record.
-    public var name: String { "\(pairID).\(role.rawValue)" }
+    public var name: String {
+        switch content {
+        case .endpoint: "\(pairID).\(role.rawValue)"
+        case .alerts: "\(pairID).\(role.rawValue).alerts"
+        }
+    }
 }
 
 public enum RendezvousAvailability: Sendable, Equatable {
@@ -27,7 +42,7 @@ public enum RendezvousAvailability: Sendable, Equatable {
 
 /// The one service that lets two phones on different networks find each other.
 ///
-/// It does exactly two things: publish this device's record and read the
+/// It does exactly two things: publish this device's records and read the
 /// peer's. Records are opaque and already encrypted when they reach a
 /// provider. CloudKit is the provider today. Another one, such as a DHT, only
 /// has to implement this protocol.

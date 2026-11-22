@@ -8,6 +8,9 @@ import SwiftUI
 /// personal hotspot, or mobile data on both sides.
 struct ConnectionFailedView: View {
     let reason: ParentConnector.UnreachableReason
+    /// The fallback through iCloud, which may still bring alerts.
+    let relay: AlertWatch.State
+    let relayDigest: AlertDigest?
     let retry: @MainActor () -> Void
     let showJournal: @MainActor () -> Void
 
@@ -48,6 +51,9 @@ struct ConnectionFailedView: View {
                 Button("failure.journal", action: showJournal)
                     .buttonStyle(SecondaryButtonStyle())
                     .accessibilityIdentifier("failure.journal")
+
+                // Below the buttons: what to try comes first, what still works comes after.
+                RelayCard(state: relay, digest: relayDigest)
             }
             .padding(20)
             .readableWidth()

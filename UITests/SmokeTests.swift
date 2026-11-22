@@ -88,9 +88,15 @@ final class SmokeTests: AppTestCase {
         goBack(in: app, to: settings)
 
         settings.tap()
-        let diagnostics = app.buttons["settings.diagnostics"]
-        XCTAssertTrue(diagnostics.waitForExistence(timeout: timeout))
+        // The parent's own choices about alerts come first.
+        XCTAssertTrue(app.descendants(matching: .any)["settings.alerts.volume"].waitForExistence(timeout: timeout))
         attachScreenshot(named: "9-settings")
+        // On a small screen the rest of the list is further down.
+        let diagnostics = app.buttons["settings.diagnostics"]
+        if !diagnostics.waitForExistence(timeout: 3) {
+            app.swipeUp()
+        }
+        XCTAssertTrue(diagnostics.waitForExistence(timeout: timeout))
         diagnostics.tap()
         XCTAssertTrue(app.descendants(matching: .any)["diagnostics.icloud"].waitForExistence(timeout: timeout))
         attachScreenshot(named: "10-diagnostics")

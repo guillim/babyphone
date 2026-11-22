@@ -8,6 +8,7 @@ struct ParentMonitorView: View {
     @State private var isShowingJournal = false
     @State private var isShowingSettings = false
     @State private var isChoosingWhiteNoise = false
+    @State private var isChoosingSnooze = false
 
     init(model: @autoclosure @escaping () -> ParentMonitorModel) {
         _model = StateObject(wrappedValue: model())
@@ -19,7 +20,7 @@ struct ParentMonitorView: View {
                 if !model.isMonitoring {
                     paused
                 } else if let reason = failureToShow {
-                    ConnectionFailedView(reason: reason, retry: model.retry) {
+                    ConnectionFailedView(reason: reason, relay: model.relay, relayDigest: model.relayDigest, retry: model.retry) {
                         isShowingJournal = true
                     }
                 } else if model.didBabyStop, !model.isConnected {
@@ -64,6 +65,12 @@ struct ParentMonitorView: View {
                 Button("parent.whiteNoise.minutes \(String(minutes))") { model.setWhiteNoise(minutes: minutes) }
             }
             Button("parent.whiteNoise.hour") { model.setWhiteNoise(minutes: 60) }
+            Button("common.cancel", role: .cancel) {}
+        }
+        .confirmationDialog("parent.snooze.title", isPresented: $isChoosingSnooze, titleVisibility: .visible) {
+            ForEach(AlertPolicy.snoozeChoices, id: \.self) { minutes in
+                Button("parent.snooze.minutes \(String(minutes))") { model.snoozeAlerts(minutes: minutes) }
+            }
             Button("common.cancel", role: .cancel) {}
         }
         .alert("parent.microphoneDenied.title", isPresented: microphoneDeniedBinding) {
@@ -206,11 +213,34 @@ struct ParentMonitorView: View {
                 actionTitle: "common.ok", action: model.dismissPowerAlert
             )
         }
-        if model.noiseAlert != nil {
-            AlertBanner(title: "parent.noise.title", systemImage: "waveform.badge.exclamationmark", actionTitle: "parent.noise.view") {
-                model.dismissNoiseAlert()
-                isShowingJournal = true
+        if model.cryAlert != nil || model.noiseAlert != nil {
+            AlertBanner(
+                title: model.cryAlert != nil ? "parent.cry.title" : "parent.noise.title",
+                systemImage: model.cryAlert != nil ? "drop.fill" : "waveform.badge.exclamationmark",
+                actionTitle: "parent.noise.view",
+                action: {
+                    model.dismissNoiseAlert()
+                    isShowingJournal = true
+                },
+                secondaryTitle: model.alertPolicy.snoozedUntil == nil ? "parent.snooze" : nil,
+                secondaryAction: { isChoosingSnooze = true }
+            )
+        }
+        if let until = model.alertPolicy.snoozedUntil {
+            HStack(spacing: 8) {
+                Image(systemName: "bell.slash")
+                Text("parent.snooze.until \(until.formatted(date: .omitted, time: .shortened))")
+                Spacer(minLength: 8)
+                Button("parent.snooze.resume", action: model.resumeAlerts)
+                    .font(.footnote.weight(.bold))
+                    .frame(minWidth: Theme.minimumTouchTarget, minHeight: Theme.minimumTouchTarget)
+                    .accessibilityIdentifier("parent.snooze.resume")
             }
+            .font(.footnote)
+            .foregroundStyle(Theme.accent)
+        }
+        if !model.isConnected {
+            RelayCard(state: model.relay, digest: model.relayDigest)
         }
         if model.isConnected, let thermal = model.status?.thermal, thermal == .serious || thermal == .critical {
             Text("parent.babyHot")
@@ -374,12 +404,14 @@ private struct TalkButton: View {
     }
 }
 
-/// A prominent banner with one action, for things the parent must not miss.
+/// A prominent banner with one action, sometimes two, for things the parent must not miss.
 private struct AlertBanner: View {
     let title: LocalizedStringKey
     let systemImage: String
     let actionTitle: LocalizedStringKey
     let action: @MainActor () -> Void
+    var secondaryTitle: LocalizedStringKey?
+    var secondaryAction: (@MainActor () -> Void)?
 
     var body: some View {
         HStack(spacing: 12) {
@@ -387,6 +419,11 @@ private struct AlertBanner: View {
             Text(title)
                 .font(.subheadline.weight(.semibold))
             Spacer(minLength: 8)
+            if let secondaryTitle, let secondaryAction {
+                Button(secondaryTitle, action: secondaryAction)
+                    .font(.subheadline)
+                    .frame(minWidth: Theme.minimumTouchTarget, minHeight: Theme.minimumTouchTarget)
+            }
             Button(actionTitle, action: action)
                 .font(.subheadline.weight(.bold))
                 .frame(minWidth: Theme.minimumTouchTarget, minHeight: Theme.minimumTouchTarget)

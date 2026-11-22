@@ -73,7 +73,7 @@ private struct JournalRow: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
                     .foregroundStyle(Theme.text)
-                if event.kind == .noise {
+                if event.kind == .noise || event.kind == .cry {
                     if let duration = event.duration {
                         Text(Duration.seconds(duration.rounded()), format: .units(allowed: [.minutes, .seconds], width: .abbreviated))
                             .font(.footnote)
@@ -100,6 +100,7 @@ private struct JournalRow: View {
         case .monitoringStarted: "journal.event.started"
         case .monitoringStopped: "journal.event.stopped"
         case .noise: "journal.event.noise"
+        case .cry: "journal.event.cry"
         case .linkLost: "journal.event.linkLost"
         case .linkRestored: "journal.event.linkRestored"
         case .unplugged: "journal.event.unplugged"
@@ -112,6 +113,7 @@ private struct JournalRow: View {
         case .monitoringStarted: "play.circle"
         case .monitoringStopped: "stop.circle"
         case .noise: "waveform"
+        case .cry: "drop.fill"
         case .linkLost: "wifi.slash"
         case .linkRestored: "wifi"
         case .unplugged: "powerplug"
@@ -121,7 +123,7 @@ private struct JournalRow: View {
 
     private var tint: Color {
         switch event.kind {
-        case .noise, .unplugged: Theme.accent
+        case .noise, .cry, .unplugged: Theme.accent
         case .linkLost, .batteryLow: Theme.alert
         default: Theme.status
         }

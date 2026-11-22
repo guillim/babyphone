@@ -7,6 +7,8 @@ public struct JournalEvent: Codable, Sendable, Equatable, Identifiable {
         case monitoringStopped
         /// Noise in the room. `duration` is nil while it is still going on.
         case noise
+        /// The baby unit recognised crying. `duration` is nil while it is still going on.
+        case cry
         case linkLost
         case linkRestored
         /// The baby unit's charger was disconnected.

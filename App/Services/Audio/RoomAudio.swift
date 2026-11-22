@@ -2,7 +2,8 @@
 import BabyphoneCore
 
 /// Baby-side audio that runs whether or not a parent unit is connected:
-/// measures the sound level in the room, and plays the lullaby and the white noise.
+/// measures the sound level in the room, listens for crying, and plays the
+/// lullaby and the white noise.
 final class RoomAudio: @unchecked Sendable {
     enum Failure: Error {
         case microphoneUnavailable
@@ -10,11 +11,19 @@ final class RoomAudio: @unchecked Sendable {
 
     /// Called about ten times a second with the room level in dBFS, on an audio thread.
     var onLevel: (@Sendable (Double) -> Void)?
+    /// Called a few times a second with how confident the device is that it hears crying, from 0 to 1.
+    var onCryConfidence: (@Sendable (Double) -> Void)? {
+        get { cryClassifier.onConfidence }
+        set { cryClassifier.onConfidence = newValue }
+    }
+    /// Whether this device can recognise crying right now.
+    var isCryDetectionActive: Bool { cryClassifier.isActive }
 
     /// Silence from the microphone tap for this long means the engine has stalled.
     private static let stallDelay: TimeInterval = 3
 
     private let engine = AVAudioEngine()
+    private let cryClassifier = CryClassifier()
     private let lullabyPlayer = AVAudioPlayerNode()
     private let lullabyBuffer: AVAudioPCMBuffer?
     private let whiteNoisePlayer = AVAudioPlayerNode()
@@ -85,6 +94,7 @@ final class RoomAudio: @unchecked Sendable {
             whiteNoisePlayer.stop()
             engine.inputNode.removeTap(onBus: 0)
             engine.stop()
+            cryClassifier.stop()
         }
     }
 
@@ -126,11 +136,13 @@ final class RoomAudio: @unchecked Sendable {
         let format = input.outputFormat(forBus: 0)
         guard format.sampleRate > 0, format.channelCount > 0 else { throw Failure.microphoneUnavailable }
         input.removeTap(onBus: 0)
-        input.installTap(onBus: 0, bufferSize: 4096, format: format) { [weak self] buffer, _ in
+        cryClassifier.start(format: format)
+        input.installTap(onBus: 0, bufferSize: 4096, format: format) { [weak self] buffer, time in
             guard let self, let samples = buffer.floatChannelData?[0] else { return }
             let level = SoundLevel.decibels(of: UnsafeBufferPointer(start: samples, count: Int(buffer.frameLength)))
             lock.withLock { lastMeasurement = Date() }
             onLevel?(level)
+            cryClassifier.analyze(buffer, at: time)
         }
         engine.prepare()
         try engine.start()

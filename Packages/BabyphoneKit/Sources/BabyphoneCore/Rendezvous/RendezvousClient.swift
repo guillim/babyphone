@@ -44,21 +44,39 @@ public struct RendezvousClient: Sendable {
     }
 
     public func publish(_ advertisement: EndpointAdvertisement) async throws {
-        let slot = RendezvousSlot(pairID: key.rendezvousID, role: role)
-        let plaintext = try WireCoding.encode(advertisement)
-        // The slot name is authenticated, so a record cannot be replayed into the other role's slot.
-        let sealed = try ChaChaPoly.seal(plaintext, using: key.sealingKey, authenticating: Data(slot.name.utf8))
-        try await provider.publish(sealed.combined, to: slot)
+        try await publish(advertisement, as: .endpoint)
     }
 
     /// Reads the peer's advertisement. Returns nil when there is none, or when it cannot be decrypted.
     public func fetchPeer() async throws -> EndpointAdvertisement? {
-        let slot = RendezvousSlot(pairID: key.rendezvousID, role: role.peer)
+        try await fetchPeer(EndpointAdvertisement.self, from: .endpoint)
+    }
+
+    /// Publishes this device's latest alerts, for a peer that has no direct link to it.
+    public func publish(_ digest: AlertDigest) async throws {
+        try await publish(digest, as: .alerts)
+    }
+
+    /// Reads the peer's latest alerts. Returns nil when there are none, or when they cannot be decrypted.
+    public func fetchPeerAlerts() async throws -> AlertDigest? {
+        try await fetchPeer(AlertDigest.self, from: .alerts)
+    }
+
+    private func publish(_ value: some Encodable, as content: RendezvousSlot.Content) async throws {
+        let slot = RendezvousSlot(pairID: key.rendezvousID, role: role, content: content)
+        let plaintext = try WireCoding.encode(value)
+        // The slot name is authenticated, so a record cannot be replayed into another slot.
+        let sealed = try ChaChaPoly.seal(plaintext, using: key.sealingKey, authenticating: Data(slot.name.utf8))
+        try await provider.publish(sealed.combined, to: slot)
+    }
+
+    private func fetchPeer<Value: Decodable>(_ type: Value.Type, from content: RendezvousSlot.Content) async throws -> Value? {
+        let slot = RendezvousSlot(pairID: key.rendezvousID, role: role.peer, content: content)
         guard let record = try await provider.fetch(slot) else { return nil }
         guard
             let box = try? ChaChaPoly.SealedBox(combined: record),
             let plaintext = try? ChaChaPoly.open(box, using: key.sealingKey, authenticating: Data(slot.name.utf8))
         else { return nil }
-        return try? WireCoding.decode(EndpointAdvertisement.self, from: plaintext)
+        return try? WireCoding.decode(type, from: plaintext)
     }
 }

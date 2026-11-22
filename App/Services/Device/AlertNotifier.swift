@@ -5,6 +5,7 @@ import Foundation
 enum AlertNotifier {
     private enum Identifier {
         static let noise = "noise"
+        static let cry = "cry"
         static let linkLost = "link-lost"
         static let power = "power"
         static let watchdog = "watchdog"
@@ -23,6 +24,10 @@ enum AlertNotifier {
 
     static func notifyNoise() {
         post(Identifier.noise, title: String(localized: "notification.noise.title"), body: String(localized: "notification.noise.body"))
+    }
+
+    static func notifyCry() {
+        post(Identifier.cry, title: String(localized: "notification.cry.title"), body: String(localized: "notification.noise.body"))
     }
 
     static func notifyLinkLost() {

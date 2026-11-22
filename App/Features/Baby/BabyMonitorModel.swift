@@ -27,6 +27,8 @@ final class BabyMonitorModel: ObservableObject {
         let key: PairingKey
         let media: BabyPeerMedia
         var host: BabyHost?
+        /// Leaves this parent the latest alerts in iCloud, for when it has no direct link.
+        var beacon: AlertBeacon?
         var link = BabyHost.State.stopped
         var remoteAccess = BabyHost.RemoteAccess.disabled
         /// This parent asked for sound only. The other parent's picture is not affected.
@@ -79,8 +81,10 @@ final class BabyMonitorModel: ObservableObject {
     private let network = NetworkStatus()
 
     private var detector = NoiseDetector(sensitivity: .medium)
+    private var cryDetector = CryDetector()
     private var powerWatch = PowerWatch()
     private var noiseEvent: JournalEvent?
+    private var cryEvent: JournalEvent?
     private var whiteNoiseEndsAt: Date?
     private var whiteNoiseTimer: Task<Void, Never>?
     private var isLowLightOn = false
@@ -145,6 +149,7 @@ final class BabyMonitorModel: ObservableObject {
         isMonitoring = true
         isInBackground = false
         detector.recalibrate()
+        cryDetector = CryDetector()
         powerWatch = PowerWatch()
         UIApplication.shared.isIdleTimerDisabled = true
         DeviceHealth.startMonitoring()
@@ -155,6 +160,9 @@ final class BabyMonitorModel: ObservableObject {
 
         roomAudio.onLevel = { [weak self] decibels in
             Task { @MainActor [weak self] in self?.ingest(decibels: decibels) }
+        }
+        roomAudio.onCryConfidence = { [weak self] confidence in
+            Task { @MainActor [weak self] in self?.ingest(cryConfidence: confidence) }
         }
         tasks = [
             Task { [weak self] in
@@ -169,12 +177,14 @@ final class BabyMonitorModel: ObservableObject {
         for parent in parents {
             parent.wantsVideo = true
             parent.isTalking = false
+            let rendezvous = RendezvousClient(provider: CloudKitRendezvous(), key: parent.key, role: .baby)
             let host = BabyHost(
                 makeSession: parent.media.sessionFactory,
                 listener: BonjourSignalingListener(key: parent.key),
-                rendezvous: RendezvousClient(provider: CloudKitRendezvous(), key: parent.key, role: .baby)
+                rendezvous: rendezvous
             )
             parent.host = host
+            parent.beacon = AlertBeacon(rendezvous: rendezvous)
             hosts.append(host)
             tasks += [
                 Task { [weak self, weak parent] in
@@ -226,15 +236,21 @@ final class BabyMonitorModel: ObservableObject {
         whiteNoiseTimer?.cancel()
         network.stop()
         roomAudio.onLevel = nil
+        roomAudio.onCryConfidence = nil
 
         if case .ended(let startedAt, let duration) = detector.finish() {
             await closeNoiseEvent(startedAt: startedAt, duration: duration)
         }
+        if case .ended(let startedAt, let duration) = cryDetector.finish() {
+            await closeCryEvent(startedAt: startedAt, duration: duration)
+        }
         if let stopped = try? await journal.record(.monitoringStopped) {
             await broadcast(.journal([stopped]))
         }
-        // Lets the parent units tell a deliberate stop from a lost link.
+        // Lets the parent units tell a deliberate stop from a lost link: over the link
+        // for those that are connected, and through iCloud for those that are not.
         await broadcast(.stopping)
+        await relayAlerts(toEveryParent: true)
         try? await Task.sleep(for: .milliseconds(300))
 
         // The device goes quiet and dark before anything that may wait on the network.
@@ -254,6 +270,8 @@ final class BabyMonitorModel: ObservableObject {
             await parent.host?.stop()
             parent.host = nil
             parent.link = .stopped
+            await parent.beacon?.flush()
+            parent.beacon = nil
         }
         AudioSessionController.deactivate()
     }
@@ -287,9 +305,36 @@ final class BabyMonitorModel: ObservableObject {
                 guard let event = try? await journal.record(.noise, at: date) else { return }
                 noiseEvent = event
                 await broadcast(.journal([event]))
+                await relayAlerts()
             }
         case .ended(let startedAt, let duration):
             Task { await closeNoiseEvent(startedAt: startedAt, duration: duration) }
+        }
+    }
+
+    /// Takes one reading from the cry classifier: how confident it is, from 0 to 1.
+    private func ingest(cryConfidence: Double) {
+        guard isMonitoring else { return }
+        switch cryDetector.ingest(confidence: cryConfidence, at: Date()) {
+        case nil:
+            break
+        case .started(let date):
+            Task {
+                guard let event = try? await journal.record(.cry, at: date) else { return }
+                cryEvent = event
+                await broadcast(.journal([event]))
+                await relayAlerts()
+            }
+        case .ended(let startedAt, let duration):
+            Task { await closeCryEvent(startedAt: startedAt, duration: duration) }
+        }
+    }
+
+    private func closeCryEvent(startedAt: Date, duration: TimeInterval) async {
+        guard let open = cryEvent, open.date == startedAt else { return }
+        cryEvent = nil
+        if let closed = try? await journal.setDuration(duration, ofEvent: open.id) {
+            await broadcast(.journal([closed]))
         }
     }
 
@@ -426,23 +471,42 @@ final class BabyMonitorModel: ObservableObject {
         for event in powerWatch.ingest(batteryLevel: batteryLevel, isCharging: isCharging) {
             if let recorded = try? await journal.record(event == .unplugged ? .unplugged : .batteryLow) {
                 await broadcast(.journal([recorded]))
+                await relayAlerts()
             }
         }
         for parent in parents where parent.route != nil {
-            await send(.status(MonitorStatus(
-                soundLevel: soundLevel,
-                isNoiseActive: detector.isNoiseActive,
-                batteryLevel: batteryLevel,
-                isCharging: isCharging,
-                thermal: DeviceHealth.thermal,
-                roomName: roomName,
-                sensitivity: detector.sensitivity,
-                isVideoEnabled: isCameraRunning && parent.wantsVideo,
-                isNightLightOn: nightLight != .off,
-                isLullabyPlaying: isLullabyPlaying,
-                whiteNoiseEndsAt: whiteNoiseEndsAt,
-                isLowLightOn: isLowLightOn
-            )), to: parent)
+            await send(.status(status(for: parent)), to: parent)
+        }
+    }
+
+    private func status(for parent: Parent) -> MonitorStatus {
+        MonitorStatus(
+            soundLevel: soundLevel,
+            isNoiseActive: detector.isNoiseActive,
+            batteryLevel: batteryLevel,
+            isCharging: isCharging,
+            thermal: DeviceHealth.thermal,
+            roomName: roomName,
+            sensitivity: detector.sensitivity,
+            isVideoEnabled: isCameraRunning && parent.wantsVideo,
+            isNightLightOn: nightLight != .off,
+            isLullabyPlaying: isLullabyPlaying,
+            whiteNoiseEndsAt: whiteNoiseEndsAt,
+            isLowLightOn: isLowLightOn,
+            isCryDetectionActive: roomAudio.isCryDetectionActive,
+            isCrying: cryDetector.isCrying
+        )
+    }
+
+    /// Leaves the latest state and events in iCloud for the parent units that have no direct
+    /// link, so an alert can still reach them. It is a fallback with no guarantee: see `AlertDigest`.
+    private func relayAlerts(toEveryParent: Bool = false) async {
+        let waiting = parents.filter { $0.remoteAccess == .ready && (toEveryParent || $0.route == nil) }
+        guard !waiting.isEmpty else { return }
+        let since = Date().addingTimeInterval(-AlertDigest.eventWindow)
+        let events = ((try? await journal.events(since: since)) ?? []).filter { $0.origin == .baby }
+        for parent in waiting {
+            await parent.beacon?.publish(isMonitoring: isMonitoring, status: status(for: parent), events: events)
         }
     }
 
@@ -457,7 +521,9 @@ final class BabyMonitorModel: ObservableObject {
         }
     }
 
+    /// Runs once a minute: the health log, and the sign of life left in iCloud.
     private func recordHealth() async {
+        await relayAlerts()
         let linkLabel = connectedRoutes.isEmpty ? "waiting" : connectedRoutes.map(\.rawValue).joined(separator: "+")
         try? await healthLog.append(HealthSample(
             role: .baby,

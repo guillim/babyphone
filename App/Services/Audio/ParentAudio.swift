@@ -72,6 +72,14 @@ final class ParentAudio: @unchecked Sendable {
         }
     }
 
+    /// Sets how loud the alarm and the chime play, on top of the device's own volume.
+    func setVolume(_ volume: AlarmVolume) {
+        queue.async { [self] in
+            alarmPlayer.volume = volume.gain
+            chimePlayer.volume = volume.gain
+        }
+    }
+
     /// Plays the alert chime once.
     func playChime() {
         queue.async { [self] in

@@ -9,6 +9,10 @@ public struct SettingsStore: Sendable {
         case sensitivity
         case usesFrontCamera
         case pairedAt
+        /// Parent unit: how loud the alarm and the chime play.
+        case alarmVolume
+        /// Parent unit: alert on any noise, or on crying only.
+        case alertTrigger
     }
 
     private let database: AppDatabase
