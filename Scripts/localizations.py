@@ -21,12 +21,14 @@ FAMILIES = {
 }
 # A key is lowercase words joined by dots, optionally followed by interpolations.
 KEY = re.compile(r'"([a-z][A-Za-z0-9]*)((?:\.[A-Za-z0-9]+)+)((?: \\\([^"]*\))*)"')
+# Accessibility identifiers share the dotted shape but are never shown.
+IDENTIFIER = re.compile(r'accessibilityIdentifier\("[^"]*"\)')
 
 
 def keys_in_code():
     found = set()
     for path in (ROOT / "App").rglob("*.swift"):
-        for family, rest, interpolations in KEY.findall(path.read_text()):
+        for family, rest, interpolations in KEY.findall(IDENTIFIER.sub("", path.read_text())):
             if family in FAMILIES:
                 found.add(family + rest + " %@" * interpolations.count("\\("))
     return found

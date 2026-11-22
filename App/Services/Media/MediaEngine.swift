@@ -109,8 +109,7 @@ final class ParentMedia: @unchecked Sendable {
 
     /// Sends the parent's voice to the baby unit, or stops sending it.
     ///
-    /// The microphone only runs while a track is attached, so nothing is
-    /// recorded outside talk-back.
+    /// Nothing is sent to the baby unit unless a track is attached.
     func setTalking(_ isTalking: Bool) {
         let (session, track) = lock.withLock { () -> (WebRTCSession?, RTCAudioTrack?) in
             if isTalking, microphoneTrack == nil {

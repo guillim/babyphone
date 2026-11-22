@@ -107,7 +107,7 @@ final class BabyMonitorModel: ObservableObject {
         }
         isCameraAllowed = await AVCaptureDevice.requestAccess(for: .video)
         do {
-            try AudioSessionController.activate(.room)
+            try AudioSessionController.activate()
             try roomAudio.start()
         } catch {
             roomAudio.stop()
@@ -175,13 +175,11 @@ final class BabyMonitorModel: ObservableObject {
         // Lets the parent unit tell a deliberate stop from a lost link.
         await send(.stopping)
         try? await Task.sleep(for: .milliseconds(300))
-        await host?.stop()
-        host = nil
 
+        // The phone goes quiet and dark before anything that may wait on the network.
         media.stopCamera()
         isCameraRunning = false
         roomAudio.stop()
-        AudioSessionController.deactivate()
         roomLight.end()
         nightLight = .off
         isLullabyPlaying = false
@@ -189,6 +187,10 @@ final class BabyMonitorModel: ObservableObject {
         soundLevel = 0
         link = .stopped
         UIApplication.shared.isIdleTimerDisabled = false
+
+        await host?.stop()
+        host = nil
+        AudioSessionController.deactivate()
     }
 
     /// Call on any touch: wakes the screen, then dims it again after a while.

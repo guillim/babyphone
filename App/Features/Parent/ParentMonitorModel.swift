@@ -69,7 +69,9 @@ final class ParentMonitorModel: ObservableObject {
         didBabyStop = false
         await reloadJournal()
         await AlertNotifier.requestAuthorization()
-        try? AudioSessionController.activate(.listening)
+        // Asked up front: the audio session opens the microphone unit as soon as a connection starts.
+        _ = await AVCaptureDevice.requestAccess(for: .audio)
+        try? AudioSessionController.activate()
         audio.start()
         DeviceHealth.startMonitoring()
         network.start { [weak self] in
@@ -159,22 +161,16 @@ final class ParentMonitorModel: ObservableObject {
         guard isTalking else {
             self.isTalking = false
             media.setTalking(false)
-            AudioSessionController.switchTo(.listening)
             send(.talking(false))
             return
         }
-        switch AVCaptureDevice.authorizationStatus(for: .audio) {
-        case .authorized:
-            self.isTalking = true
-            AudioSessionController.switchTo(.talking)
-            media.setTalking(true)
-            send(.talking(true))
-        case .notDetermined:
-            // The first press only asks for the permission. Talking starts on the next one.
-            Task { _ = await AVCaptureDevice.requestAccess(for: .audio) }
-        default:
+        guard AVCaptureDevice.authorizationStatus(for: .audio) == .authorized else {
             isMicrophoneDenied = true
+            return
         }
+        self.isTalking = true
+        media.setTalking(true)
+        send(.talking(true))
     }
 
     func acknowledgeMicrophoneDenied() {

@@ -87,6 +87,8 @@ final class SmokeTests: XCTestCase {
 
     func testParentUnitShowsTheLiveScreenThenExplainsTheFailure() {
         let app = launch(state: "parent-paired")
+        // Notifications, then the microphone.
+        allowSystemAlertIfAny()
         allowSystemAlertIfAny()
 
         // Every control of the live screen fits on one screen, without scrolling.

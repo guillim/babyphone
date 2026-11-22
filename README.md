@@ -33,6 +33,7 @@ At home the phones find each other over Wi-Fi with Bonjour. This needs neither i
 | `App/Features` | One folder per screen, each with a SwiftUI view and its model. |
 | `App/DesignSystem` | Colours, type and shared components. |
 | `App/Resources` | Icon, colours, French and English strings. |
+| `UITests` | Launches the app in a simulator on the smallest supported iPhone and walks every screen. |
 | `Config` | Bundle identifier, versions, Info.plist, entitlements. |
 
 The connection logic lives in the core package behind three small protocols (`PeerSession`, `LocalSignalingListening` and `LocalSignalingConnecting`, `RendezvousProvider`). The tests run both phones' logic against each other over a simulated network.
@@ -78,6 +79,8 @@ Verified by automated tests:
 - The real secured channel: frames cross TLS keyed by the pairing key, and a phone with another key is refused.
 - Both phones end to end over real TLS and real WebRTC, on the local path and through the rendezvous.
 
+- The app itself in a simulator: it starts, every screen appears, and the parent's controls fit an iPhone SE without scrolling.
+
 The whole app compiles in CI with the oldest and the newest supported Xcode.
 
 Not verified, because it needs two real iPhones:
@@ -88,7 +91,7 @@ Not verified, because it needs two real iPhones:
 - The direct IPv6 connection through real home routers and mobile networks.
 - Sound levels. The three noise thresholds in `Sensitivity.swift` are starting values to calibrate.
 - The sound meter and the lullaby sharing the microphone and speaker with WebRTC.
-- Sound on the parent phone. It listens with the playback audio category so that the microphone stays off outside talk-back. If the parent phone stays silent, this is the first place to look: `AudioSessionController.swift`.
+- Audio routing on real devices. Both phones use the audio configuration WebRTC is built for (play and record, voice processing, loudspeaker). On the parent phone iOS therefore shows its microphone indicator while connected, although the voice is only sent while the talk button is held. Switching the parent to playback only is a possible later refinement, in `AudioSessionController.swift`.
 
 ## Before the first real night
 
@@ -103,4 +106,4 @@ swift test --package-path Packages/BabyphoneKit   # core logic, WebRTC and netwo
 python3 Scripts/localizations.py                  # every string exists in French and English
 ```
 
-On Linux the first command runs the core tests only. In Xcode, ⌘U runs both test suites.
+On Linux the first command runs the core tests only. In Xcode, ⌘U runs everything, including the walk through the screens in the selected simulator.
