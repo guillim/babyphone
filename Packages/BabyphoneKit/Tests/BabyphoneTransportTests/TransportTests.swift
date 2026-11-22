@@ -180,6 +180,34 @@ import Testing
         await host.stop()
     }
 
+    @Test func twoParentsFollowTheSameBabyUnit() async throws {
+        // The baby unit runs one host per paired parent, each with its own key.
+        let keys = [PairingKey.random(), PairingKey.random()]
+        var hosts: [BabyHost] = [], connectors: [ParentConnector] = []
+        for key in keys {
+            let network = LoopbackSignaling(babyKey: key, parentKey: key)
+            hosts.append(BabyHost(makeSession: TestMedia.sessionFactory, listener: network, rendezvous: nil, timings: .quick))
+            connectors.append(ParentConnector(makeSession: TestMedia.sessionFactory, local: network, rendezvous: nil, timings: .quick))
+        }
+        for host in hosts { await host.start() }
+        for connector in connectors { await connector.start() }
+
+        for connector in connectors {
+            #expect(await waitFor(connector.states) { $0 == .connected(.local) })
+        }
+        // Both are served at once, each over its own connection.
+        for (index, host) in hosts.enumerated() {
+            await host.send(Data("for parent \(index)".utf8))
+        }
+        for (index, connector) in connectors.enumerated() {
+            var received = connector.payloads.makeAsyncIterator()
+            #expect(await received.next() == Data("for parent \(index)".utf8))
+        }
+
+        for connector in connectors { await connector.stop() }
+        for host in hosts { await host.stop() }
+    }
+
     @Test func aParentWithAnotherKeyNeverConnects() async throws {
         let network = LoopbackSignaling(babyKey: .random(), parentKey: .random())
         let host = BabyHost(makeSession: TestMedia.sessionFactory, listener: network, rendezvous: nil, timings: .quick)

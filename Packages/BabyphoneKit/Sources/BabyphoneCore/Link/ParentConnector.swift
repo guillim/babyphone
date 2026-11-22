@@ -75,6 +75,13 @@ public actor ParentConnector {
         await link?.send(payload)
     }
 
+    /// Drops the current link and connects again from scratch. For a link that
+    /// still answers but no longer carries the stream, and for a manual retry.
+    public func reconnect() async {
+        retryRequested = true
+        await link?.close()
+    }
+
     private func run() async {
         var failures = 0
         while !Task.isCancelled {

@@ -102,6 +102,8 @@ private struct JournalRow: View {
         case .noise: "journal.event.noise"
         case .linkLost: "journal.event.linkLost"
         case .linkRestored: "journal.event.linkRestored"
+        case .unplugged: "journal.event.unplugged"
+        case .batteryLow: "journal.event.batteryLow"
         }
     }
 
@@ -112,13 +114,15 @@ private struct JournalRow: View {
         case .noise: "waveform"
         case .linkLost: "wifi.slash"
         case .linkRestored: "wifi"
+        case .unplugged: "powerplug"
+        case .batteryLow: "battery.25"
         }
     }
 
     private var tint: Color {
         switch event.kind {
-        case .noise: Theme.accent
-        case .linkLost: Theme.alert
+        case .noise, .unplugged: Theme.accent
+        case .linkLost, .batteryLow: Theme.alert
         default: Theme.status
         }
     }

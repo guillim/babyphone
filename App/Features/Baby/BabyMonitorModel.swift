@@ -3,7 +3,7 @@ import BabyphoneCore
 import BabyphoneTransport
 import UIKit
 
-/// The baby unit: listens to the room, hosts the parent unit's connection and keeps the journal.
+/// The baby unit: listens to the room, hosts the connection of each parent unit and keeps the journal.
 @MainActor
 final class BabyMonitorModel: ObservableObject {
     enum StartFailure: Equatable {
@@ -12,7 +12,7 @@ final class BabyMonitorModel: ObservableObject {
         case audioUnavailable
     }
 
-    /// How the night light is produced: by whichever side of the phone faces the baby.
+    /// How the night light is produced: by whichever side of the device faces the baby.
     enum NightLight: Equatable {
         case off
         /// The front camera is in use, so the screen faces the baby.
@@ -21,9 +21,32 @@ final class BabyMonitorModel: ObservableObject {
         case torch
     }
 
+    /// One paired parent unit, with its own key, its own connection and its own choices.
+    @MainActor
+    private final class Parent {
+        let key: PairingKey
+        let media: BabyPeerMedia
+        var host: BabyHost?
+        var link = BabyHost.State.stopped
+        var remoteAccess = BabyHost.RemoteAccess.disabled
+        /// This parent asked for sound only. The other parent's picture is not affected.
+        var wantsVideo = true
+        var isTalking = false
+
+        init(key: PairingKey, media: BabyPeerMedia) {
+            self.key = key
+            self.media = media
+        }
+
+        var route: LinkRoute? {
+            if case .connected(let route) = link { route } else { nil }
+        }
+    }
+
     @Published private(set) var isMonitoring = false
     @Published private(set) var startFailure: StartFailure?
-    @Published private(set) var link = BabyHost.State.stopped
+    /// How each connected parent unit reaches this device. Empty while none is connected.
+    @Published private(set) var connectedRoutes: [LinkRoute] = []
     @Published private(set) var remoteAccess = BabyHost.RemoteAccess.disabled
     /// Sound level in the room, from 0 to 1.
     @Published private(set) var soundLevel = 0.0
@@ -37,13 +60,16 @@ final class BabyMonitorModel: ObservableObject {
     @Published private(set) var roomName = ""
     @Published private(set) var usesFrontCamera = false
 
+    /// The keys of the paired parent units, in pairing order.
+    var parentKeys: [PairingKey] { parents.map(\.key) }
+
     /// Seconds without a touch before the screen dims.
     static let dimDelay: Duration = .seconds(10)
     private static let statusInterval: Duration = .milliseconds(250)
     private static let healthInterval: Duration = .seconds(60)
     private static let journalBatchSize = 100
 
-    private let key: PairingKey
+    private let parents: [Parent]
     private let settings: SettingsStore
     private let journal: JournalStore
     private let healthLog: HealthLog
@@ -52,22 +78,24 @@ final class BabyMonitorModel: ObservableObject {
     private let roomLight = RoomLight()
     private let network = NetworkStatus()
 
-    private var host: BabyHost?
     private var detector = NoiseDetector(sensitivity: .medium)
+    private var powerWatch = PowerWatch()
     private var noiseEvent: JournalEvent?
-    private var isVideoRequested = true
-    private var isParentTalking = false
+    private var whiteNoiseEndsAt: Date?
+    private var whiteNoiseTimer: Task<Void, Never>?
+    private var isLowLightOn = false
     private var isInBackground = false
     private var tasks: [Task<Void, Never>] = []
     private var lifecycleObservers: [any NSObjectProtocol] = []
     private var dimming: Task<Void, Never>?
 
-    init(key: PairingKey, database: AppDatabase, media: MediaEngine) {
-        self.key = key
+    init(keys: [PairingKey], database: AppDatabase, media: MediaEngine) {
+        let babyMedia = BabyMedia(engine: media)
+        self.media = babyMedia
+        parents = keys.map { Parent(key: $0, media: babyMedia.makePeer()) }
         settings = SettingsStore(database: database)
         journal = JournalStore(database: database, role: .baby)
         healthLog = HealthLog(database: database)
-        self.media = BabyMedia(engine: media)
     }
 
     func loadSettings() async {
@@ -91,11 +119,7 @@ final class BabyMonitorModel: ObservableObject {
             setNightLight(false)
             setNightLight(true)
         }
-        if isCameraRunning {
-            media.stopCamera()
-            isCameraRunning = false
-            updateCamera()
-        }
+        restartCameraIfRunning()
     }
 
     // MARK: Monitoring
@@ -119,8 +143,9 @@ final class BabyMonitorModel: ObservableObject {
         }
 
         isMonitoring = true
-        isVideoRequested = true
         isInBackground = false
+        detector.recalibrate()
+        powerWatch = PowerWatch()
         UIApplication.shared.isIdleTimerDisabled = true
         DeviceHealth.startMonitoring()
         roomLight.begin()
@@ -128,35 +153,55 @@ final class BabyMonitorModel: ObservableObject {
         _ = try? await journal.record(.monitoringStarted)
         try? await journal.prune()
 
-        let host = BabyHost(
-            makeSession: media.sessionFactory,
-            listener: BonjourSignalingListener(key: key),
-            rendezvous: RendezvousClient(provider: CloudKitRendezvous(), key: key, role: .baby)
-        )
-        self.host = host
         roomAudio.onLevel = { [weak self] decibels in
             Task { @MainActor [weak self] in self?.ingest(decibels: decibels) }
         }
-        network.start { [host] in
-            Task { await host.networkDidChange() }
-        }
         tasks = [
             Task { [weak self] in
-                for await state in host.states { self?.linkDidChange(to: state) }
-            },
-            Task { [weak self] in
-                for await access in host.remoteAccessChanges { self?.remoteAccess = access }
-            },
-            Task { [weak self] in
-                for await payload in host.payloads { await self?.handle(payload) }
-            },
-            Task { [weak self] in
-                while (try? await Task.sleep(for: Self.statusInterval)) != nil { await self?.sendStatus() }
+                while (try? await Task.sleep(for: Self.statusInterval)) != nil { await self?.tick() }
             },
             Task { [weak self] in
                 repeat { await self?.recordHealth() } while (try? await Task.sleep(for: Self.healthInterval)) != nil
             },
         ]
+        // Each parent unit gets its own host: its own key, its own listener, its own rendezvous record.
+        var hosts: [BabyHost] = []
+        for parent in parents {
+            parent.wantsVideo = true
+            parent.isTalking = false
+            let host = BabyHost(
+                makeSession: parent.media.sessionFactory,
+                listener: BonjourSignalingListener(key: parent.key),
+                rendezvous: RendezvousClient(provider: CloudKitRendezvous(), key: parent.key, role: .baby)
+            )
+            parent.host = host
+            hosts.append(host)
+            tasks += [
+                Task { [weak self, weak parent] in
+                    for await state in host.states {
+                        guard let parent else { return }
+                        self?.linkDidChange(to: state, for: parent)
+                    }
+                },
+                Task { [weak self, weak parent] in
+                    for await access in host.remoteAccessChanges {
+                        parent?.remoteAccess = access
+                        self?.updateRemoteAccess()
+                    }
+                },
+                Task { [weak self, weak parent] in
+                    for await payload in host.payloads {
+                        guard let parent else { return }
+                        await self?.handle(payload, from: parent)
+                    }
+                },
+            ]
+        }
+        network.start { [hosts] in
+            Task {
+                for host in hosts { await host.networkDidChange() }
+            }
+        }
         lifecycleObservers = [
             (UIApplication.didEnterBackgroundNotification, true),
             (UIApplication.willEnterForegroundNotification, false),
@@ -165,7 +210,9 @@ final class BabyMonitorModel: ObservableObject {
                 Task { @MainActor [weak self] in self?.setInBackground(isInBackground) }
             }
         }
-        await host.start()
+        for host in hosts {
+            await host.start()
+        }
     }
 
     func stop() async {
@@ -176,6 +223,7 @@ final class BabyMonitorModel: ObservableObject {
         lifecycleObservers.forEach { NotificationCenter.default.removeObserver($0) }
         lifecycleObservers = []
         dimming?.cancel()
+        whiteNoiseTimer?.cancel()
         network.stop()
         roomAudio.onLevel = nil
 
@@ -183,26 +231,30 @@ final class BabyMonitorModel: ObservableObject {
             await closeNoiseEvent(startedAt: startedAt, duration: duration)
         }
         if let stopped = try? await journal.record(.monitoringStopped) {
-            await send(.journal([stopped]))
+            await broadcast(.journal([stopped]))
         }
-        // Lets the parent unit tell a deliberate stop from a lost link.
-        await send(.stopping)
+        // Lets the parent units tell a deliberate stop from a lost link.
+        await broadcast(.stopping)
         try? await Task.sleep(for: .milliseconds(300))
 
-        // The phone goes quiet and dark before anything that may wait on the network.
+        // The device goes quiet and dark before anything that may wait on the network.
         media.stopCamera()
         isCameraRunning = false
         roomAudio.stop()
         roomLight.end()
         nightLight = .off
         isLullabyPlaying = false
+        whiteNoiseEndsAt = nil
         isScreenDimmed = false
         soundLevel = 0
-        link = .stopped
+        connectedRoutes = []
         UIApplication.shared.isIdleTimerDisabled = false
 
-        await host?.stop()
-        host = nil
+        for parent in parents {
+            await parent.host?.stop()
+            parent.host = nil
+            parent.link = .stopped
+        }
         AudioSessionController.deactivate()
     }
 
@@ -224,8 +276,9 @@ final class BabyMonitorModel: ObservableObject {
     private func ingest(decibels: Double) {
         guard isMonitoring else { return }
         soundLevel = SoundLevel.normalized(decibels: decibels)
-        // The phone's own speaker must not count as noise from the room.
-        let isMasked = isLullabyPlaying || isParentTalking
+        // The lullaby and the parent's voice change all the time: they must count neither as noise
+        // nor as background. White noise is steady, so the detector calibrates to it instead.
+        let isMasked = isLullabyPlaying || parents.contains(where: \.isTalking)
         switch detector.ingest(decibels: decibels, at: Date(), isMasked: isMasked) {
         case .none:
             break
@@ -233,7 +286,7 @@ final class BabyMonitorModel: ObservableObject {
             Task {
                 guard let event = try? await journal.record(.noise, at: date) else { return }
                 noiseEvent = event
-                await send(.journal([event]))
+                await broadcast(.journal([event]))
             }
         case .ended(let startedAt, let duration):
             Task { await closeNoiseEvent(startedAt: startedAt, duration: duration) }
@@ -244,7 +297,7 @@ final class BabyMonitorModel: ObservableObject {
         guard let open = noiseEvent, open.date == startedAt else { return }
         noiseEvent = nil
         if let closed = try? await journal.setDuration(duration, ofEvent: open.id) {
-            await send(.journal([closed]))
+            await broadcast(.journal([closed]))
         }
     }
 
@@ -263,6 +316,20 @@ final class BabyMonitorModel: ObservableObject {
         updateScreen()
     }
 
+    /// Plays white noise for `minutes`, or stops it when nil.
+    private func setWhiteNoise(minutes: Int?) {
+        whiteNoiseTimer?.cancel()
+        whiteNoiseEndsAt = minutes.map { Date().addingTimeInterval(TimeInterval($0 * 60)) }
+        roomAudio.setWhiteNoisePlaying(minutes != nil)
+        // The room's steady level just changed on purpose: measure it afresh instead of alerting on it.
+        detector.recalibrate()
+        guard let minutes else { return }
+        whiteNoiseTimer = Task { [weak self] in
+            guard (try? await Task.sleep(for: .seconds(minutes * 60))) != nil else { return }
+            self?.setWhiteNoise(minutes: nil)
+        }
+    }
+
     private func updateScreen() {
         if nightLight == .screen {
             roomLight.setScreen(.nightLight)
@@ -271,99 +338,127 @@ final class BabyMonitorModel: ObservableObject {
         }
     }
 
-    /// iOS cuts the camera when the phone is locked or the app leaves the screen. Sound
-    /// keeps flowing, and the parent unit is told the picture is off rather than shown a frozen one.
+    /// iOS cuts the camera when the device is locked or the app leaves the screen. Sound
+    /// keeps flowing, and the parent units are told the picture is off rather than shown a frozen one.
     private func setInBackground(_ isInBackground: Bool) {
         self.isInBackground = isInBackground
         updateCamera()
     }
 
-    /// The camera only runs while a parent unit is watching: it is what heats the phone.
+    /// The camera only runs while a parent unit is watching: it is what heats the device.
     private func updateCamera() {
-        let isWanted: Bool
-        if case .connected = link {
-            isWanted = isVideoRequested && isCameraAllowed && !isInBackground
-        } else {
-            isWanted = false
+        let canFilm = isCameraAllowed && !isInBackground
+        for parent in parents {
+            parent.media.setVideoActive(canFilm && parent.wantsVideo)
         }
-        media.setVideoEnabled(isWanted)
+        let isWanted = canFilm && parents.contains { $0.route != nil && $0.wantsVideo }
         guard isWanted != isCameraRunning else { return }
         if isWanted {
-            isCameraRunning = media.startCamera(position: usesFrontCamera ? .front : .back)
+            isCameraRunning = media.startCamera(position: usesFrontCamera ? .front : .back, lowLight: isLowLightOn)
         } else {
             media.stopCamera()
             isCameraRunning = false
         }
     }
 
-    // MARK: Parent unit
-
-    private func linkDidChange(to state: BabyHost.State) {
-        link = state
-        if state == .waiting {
-            isParentTalking = false
-        }
+    private func restartCameraIfRunning() {
+        guard isCameraRunning else { return }
+        media.stopCamera()
+        isCameraRunning = false
         updateCamera()
     }
 
-    private func handle(_ payload: Data) async {
+    // MARK: Parent units
+
+    private func linkDidChange(to state: BabyHost.State, for parent: Parent) {
+        parent.link = state
+        if parent.route == nil {
+            parent.isTalking = false
+        }
+        connectedRoutes = parents.compactMap(\.route)
+        updateCamera()
+    }
+
+    /// What the screen shows for remote access: ready as soon as one parent unit can reach this device.
+    private func updateRemoteAccess() {
+        let reported = parents.map(\.remoteAccess)
+        let byPriority: [BabyHost.RemoteAccess] = [.ready, .noAccount, .unavailable]
+        remoteAccess = byPriority.first { reported.contains($0) } ?? .disabled
+    }
+
+    private func handle(_ payload: Data, from parent: Parent) async {
         guard let message = try? WireCoding.decode(ParentMessage.self, from: payload) else { return }
         switch message {
         case .hello(let lastJournalRevision):
-            await sendJournal(after: lastJournalRevision)
+            await sendJournal(after: lastJournalRevision, to: parent)
         case .setNightLight(let isOn):
             setNightLight(isOn)
         case .setLullaby(let isPlaying):
             isLullabyPlaying = isPlaying
             roomAudio.setLullabyPlaying(isPlaying)
+        case .setWhiteNoise(let minutes):
+            setWhiteNoise(minutes: minutes)
+        case .setLowLight(let isOn):
+            isLowLightOn = isOn
+            restartCameraIfRunning()
         case .setVideoEnabled(let isEnabled):
-            isVideoRequested = isEnabled
+            parent.wantsVideo = isEnabled
             updateCamera()
         case .setSensitivity(let sensitivity):
             detector.sensitivity = sensitivity
             try? await settings.set(sensitivity.rawValue, for: .sensitivity)
         case .talking(let isTalking):
-            isParentTalking = isTalking
+            parent.isTalking = isTalking
         }
     }
 
-    private func sendJournal(after revision: Int64) async {
+    private func sendJournal(after revision: Int64, to parent: Parent) async {
         guard let events = try? await journal.events(from: .baby, afterRevision: revision) else { return }
         for start in stride(from: 0, to: events.count, by: Self.journalBatchSize) {
-            await send(.journal(Array(events[start..<min(events.count, start + Self.journalBatchSize)])))
+            await send(.journal(Array(events[start..<min(events.count, start + Self.journalBatchSize)])), to: parent)
         }
     }
 
-    private func sendStatus() async {
+    /// Runs four times a second: watches the power, and reports to each connected parent unit.
+    private func tick() async {
         batteryLevel = DeviceHealth.batteryLevel
         isCharging = DeviceHealth.isCharging
-        guard case .connected = link else { return }
-        await send(.status(MonitorStatus(
-            soundLevel: soundLevel,
-            isNoiseActive: detector.isNoiseActive,
-            batteryLevel: batteryLevel,
-            isCharging: isCharging,
-            thermal: DeviceHealth.thermal,
-            roomName: roomName,
-            sensitivity: detector.sensitivity,
-            isVideoEnabled: isCameraRunning,
-            isNightLightOn: nightLight != .off,
-            isLullabyPlaying: isLullabyPlaying
-        )))
+        for event in powerWatch.ingest(batteryLevel: batteryLevel, isCharging: isCharging) {
+            if let recorded = try? await journal.record(event == .unplugged ? .unplugged : .batteryLow) {
+                await broadcast(.journal([recorded]))
+            }
+        }
+        for parent in parents where parent.route != nil {
+            await send(.status(MonitorStatus(
+                soundLevel: soundLevel,
+                isNoiseActive: detector.isNoiseActive,
+                batteryLevel: batteryLevel,
+                isCharging: isCharging,
+                thermal: DeviceHealth.thermal,
+                roomName: roomName,
+                sensitivity: detector.sensitivity,
+                isVideoEnabled: isCameraRunning && parent.wantsVideo,
+                isNightLightOn: nightLight != .off,
+                isLullabyPlaying: isLullabyPlaying,
+                whiteNoiseEndsAt: whiteNoiseEndsAt,
+                isLowLightOn: isLowLightOn
+            )), to: parent)
+        }
     }
 
-    private func send(_ message: BabyMessage) async {
+    private func send(_ message: BabyMessage, to parent: Parent) async {
         guard let payload = try? WireCoding.encode(message) else { return }
-        await host?.send(payload)
+        await parent.host?.send(payload)
+    }
+
+    private func broadcast(_ message: BabyMessage) async {
+        for parent in parents {
+            await send(message, to: parent)
+        }
     }
 
     private func recordHealth() async {
-        let linkLabel: String
-        switch link {
-        case .stopped: linkLabel = "stopped"
-        case .waiting: linkLabel = "waiting"
-        case .connected(let route): linkLabel = route.rawValue
-        }
+        let linkLabel = connectedRoutes.isEmpty ? "waiting" : connectedRoutes.map(\.rawValue).joined(separator: "+")
         try? await healthLog.append(HealthSample(
             role: .baby,
             batteryLevel: DeviceHealth.batteryLevel,

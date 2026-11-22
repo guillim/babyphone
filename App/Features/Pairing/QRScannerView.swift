@@ -31,6 +31,31 @@ struct QRScannerView: UIViewRepresentable {
             // Guaranteed by `layerClass`.
             layer as! AVCaptureVideoPreviewLayer
         }
+
+        /// An iPad is used in any orientation: the picture must stay upright.
+        override func layoutSubviews() {
+            super.layoutSubviews()
+            guard let connection = previewLayer.connection, let orientation = window?.windowScene?.interfaceOrientation else { return }
+            let angle: CGFloat
+            switch orientation {
+            case .landscapeLeft: angle = 180
+            case .landscapeRight: angle = 0
+            case .portraitUpsideDown: angle = 270
+            default: angle = 90
+            }
+            if #available(iOS 17.0, *) {
+                if connection.isVideoRotationAngleSupported(angle) {
+                    connection.videoRotationAngle = angle
+                }
+            } else if connection.isVideoOrientationSupported {
+                switch orientation {
+                case .landscapeLeft: connection.videoOrientation = .landscapeLeft
+                case .landscapeRight: connection.videoOrientation = .landscapeRight
+                case .portraitUpsideDown: connection.videoOrientation = .portraitUpsideDown
+                default: connection.videoOrientation = .portrait
+                }
+            }
+        }
     }
 
     final class Scanner: NSObject, AVCaptureMetadataOutputObjectsDelegate, @unchecked Sendable {

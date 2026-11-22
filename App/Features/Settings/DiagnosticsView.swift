@@ -6,8 +6,8 @@ import SwiftUI
 /// this phone is on, whether it can be reached from outside, and how the night went.
 struct DiagnosticsView: View {
     let database: AppDatabase
-    /// Reads the addresses of the live connection. Parent unit only.
-    var currentPath: (() async -> WebRTCSession.Path?)?
+    /// The link to the baby unit. Parent unit only.
+    var parentModel: ParentMonitorModel?
 
     @State private var addresses: [InterfaceAddress] = []
     @State private var cloud: RendezvousAvailability?
@@ -26,11 +26,8 @@ struct DiagnosticsView: View {
                 Text(hasGlobalIPv6 ? "diagnostics.ipv6.present" : "diagnostics.ipv6.missing")
             }
 
-            if let path {
-                Section("diagnostics.path") {
-                    InfoRow(title: "diagnostics.path.local") { Text(verbatim: path.local) }
-                    InfoRow(title: "diagnostics.path.remote") { Text(verbatim: path.remote) }
-                }
+            if let parentModel {
+                ParentLinkSection(model: parentModel, path: path)
             }
 
             Section("diagnostics.addresses") {
@@ -81,7 +78,7 @@ struct DiagnosticsView: View {
     private func refresh() async {
         addresses = InterfaceAddress.current()
         cloud = await CloudKitRendezvous().availability()
-        path = await currentPath?()
+        path = await parentModel?.currentPath()
         healthExport = await exportHealthLog()
     }
 
@@ -92,5 +89,28 @@ struct DiagnosticsView: View {
         }
         let url = FileManager.default.temporaryDirectory.appendingPathComponent("nid-health.csv")
         return (try? csv.write(to: url, atomically: true, encoding: .utf8)) != nil ? url : nil
+    }
+}
+
+/// The state of the parent unit's link: when the baby unit was last heard, the path in use, and a way to start over.
+private struct ParentLinkSection: View {
+    @ObservedObject var model: ParentMonitorModel
+    let path: WebRTCSession.Path?
+
+    var body: some View {
+        Section("diagnostics.link") {
+            InfoRow(title: "diagnostics.lastSignal") {
+                if let lastSignal = model.lastSignal {
+                    Text(lastSignal, style: .relative)
+                } else {
+                    Text("diagnostics.lastSignal.none")
+                }
+            }
+            if let path {
+                InfoRow(title: "diagnostics.path.local") { Text(verbatim: path.local) }
+                InfoRow(title: "diagnostics.path.remote") { Text(verbatim: path.remote) }
+            }
+            Button("diagnostics.reconnect", action: model.reconnect)
+        }
     }
 }

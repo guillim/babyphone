@@ -194,13 +194,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Place this phone in the room, plugged in, with the camera facing the cot."
+            "value" : "Place this device in the room, plugged in, with the camera facing the cot."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Posez ce téléphone dans la chambre, branché, caméra tournée vers le lit."
+            "value" : "Posez cet appareil dans la chambre, branché, caméra tournée vers le lit."
           }
         }
       }
@@ -320,6 +320,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "1 parent connecté"
+          }
+        }
+      }
+    },
+    "baby.parent.connectedTwo" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "2 parents connected"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "2 parents connectés"
           }
         }
       }
@@ -477,6 +494,23 @@
         }
       }
     },
+    "common.cancel" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cancel"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Annuler"
+          }
+        }
+      }
+    },
     "common.done" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -568,13 +602,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "This iPhone's addresses"
+            "value" : "This device's addresses"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Adresses de cet iPhone"
+            "value" : "Adresses de cet appareil"
           }
         }
       }
@@ -738,13 +772,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Without public IPv6 on this network, the remote link cannot be made with this iPhone."
+            "value" : "Without public IPv6 on this network, the remote link cannot be made with this device."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Sans IPv6 publique sur ce réseau, la liaison à distance ne peut pas s'établir avec cet iPhone."
+            "value" : "Sans IPv6 publique sur ce réseau, la liaison à distance ne peut pas s'établir avec cet appareil."
           }
         }
       }
@@ -755,30 +789,64 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "This network gives this iPhone an address that can be reached from outside."
+            "value" : "This network gives this device an address that can be reached from outside."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Ce réseau donne à cet iPhone une adresse joignable depuis l'extérieur."
+            "value" : "Ce réseau donne à cet appareil une adresse joignable depuis l'extérieur."
           }
         }
       }
     },
-    "diagnostics.path" : {
+    "diagnostics.lastSignal" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Current link"
+            "value" : "Last signal"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Liaison en cours"
+            "value" : "Dernier signal"
+          }
+        }
+      }
+    },
+    "diagnostics.lastSignal.none" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "None"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aucun"
+          }
+        }
+      }
+    },
+    "diagnostics.link" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Link to the baby side"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Liaison avec le côté bébé"
           }
         }
       }
@@ -789,13 +857,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "This iPhone"
+            "value" : "This device"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Cet iPhone"
+            "value" : "Cet appareil"
           }
         }
       }
@@ -806,13 +874,30 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Other iPhone"
+            "value" : "Other device"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Autre iPhone"
+            "value" : "Autre appareil"
+          }
+        }
+      }
+    },
+    "diagnostics.reconnect" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reconnect"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reconnecter"
           }
         }
       }
@@ -857,13 +942,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "The app's data cannot be opened. Restart the iPhone, then reinstall the app if the problem persists."
+            "value" : "The app's data cannot be opened. Restart the device, then reinstall the app if the problem persists."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Impossible d'ouvrir les données de l'app. Redémarrez l'iPhone, puis réinstallez l'app si le problème persiste."
+            "value" : "Impossible d'ouvrir les données de l'app. Redémarrez l'appareil, puis réinstallez l'app si le problème persiste."
           }
         }
       }
@@ -908,13 +993,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "The network blocks the direct link between the two phones. There is no relay: the picture never goes through a server."
+            "value" : "The network blocks the direct link between the two devices. There is no relay: the picture never goes through a server."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Le réseau bloque la liaison directe entre les deux téléphones. Il n'existe aucun relais : l'image ne passe jamais par un serveur."
+            "value" : "Le réseau bloque la liaison directe entre les deux appareils. Il n'existe aucun relais : l'image ne passe jamais par un serveur."
           }
         }
       }
@@ -942,13 +1027,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "The phone in the room is not answering. Monitoring may not be started on it."
+            "value" : "The device in the room is not answering. Monitoring may not be started on it."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Le téléphone de la chambre ne répond pas. La surveillance n'y est peut-être pas démarrée."
+            "value" : "L'appareil de la chambre ne répond pas. La surveillance n'y est peut-être pas démarrée."
           }
         }
       }
@@ -993,13 +1078,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Check that the phone in the room has a network connection"
+            "value" : "Check that the device in the room has a network connection"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Vérifiez que le téléphone de la chambre a du réseau"
+            "value" : "Vérifiez que l'appareil de la chambre a du réseau"
           }
         }
       }
@@ -1017,6 +1102,40 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Ouvrez l'app côté bébé et démarrez la surveillance"
+          }
+        }
+      }
+    },
+    "failure.tip.cellular" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Or turn Wi-Fi off on both sides to use mobile data"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ou coupez le Wi-Fi des deux côtés pour passer en données mobiles"
+          }
+        }
+      }
+    },
+    "failure.tip.hotspot" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Turn on Personal Hotspot on one phone, then connect the other device to it"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Activez le partage de connexion sur un téléphone, puis connectez-y l'autre appareil"
           }
         }
       }
@@ -1061,13 +1180,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Or join the same Wi-Fi as the phone in the room"
+            "value" : "Or join the same Wi-Fi as the device in the room"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Ou rejoignez le même Wi-Fi que le téléphone de la chambre"
+            "value" : "Ou rejoignez le même Wi-Fi que l'appareil de la chambre"
           }
         }
       }
@@ -1089,36 +1208,19 @@
         }
       }
     },
-    "failure.tip.wifi" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Switch to Wi-Fi"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Passez en Wi-Fi"
-          }
-        }
-      }
-    },
     "icloud.missing" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Sign this iPhone in to iCloud for remote monitoring"
+            "value" : "Sign this device in to iCloud for remote monitoring"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Connectez cet iPhone à iCloud pour la surveillance à distance"
+            "value" : "Connectez cet appareil à iCloud pour la surveillance à distance"
           }
         }
       }
@@ -1136,6 +1238,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Aucun événement pour l'instant."
+          }
+        }
+      }
+    },
+    "journal.event.batteryLow" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Battery low"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Batterie faible"
           }
         }
       }
@@ -1225,6 +1344,23 @@
         }
       }
     },
+    "journal.event.unplugged" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Charger unplugged"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chargeur débranché"
+          }
+        }
+      }
+    },
     "journal.noise.ongoing" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1265,13 +1401,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "High: alerts on small noises. Low: loud noises only."
+            "value" : "The app calibrates itself to the room's background noise. High: alerts on small noises. Low: loud noises only."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Élevée : alerte dès les petits bruits. Faible : seulement les bruits forts."
+            "value" : "L'app s'étalonne seule sur le bruit de fond de la chambre. Élevée : alerte dès les petits bruits. Faible : seulement les bruits forts."
           }
         }
       }
@@ -1446,6 +1582,23 @@
         }
       }
     },
+    "notification.power.body" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Check the charger of the device in the room."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vérifiez le chargeur de l'appareil de la chambre."
+          }
+        }
+      }
+    },
     "notification.watchdog.body" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1486,13 +1639,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "On the parent phone, scan this code or type the 6 digits. Keep the two phones side by side."
+            "value" : "On the parent device, scan this code or type the 6 digits. Keep the two devices side by side."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Sur le téléphone parent, scannez ce code ou saisissez les 6 chiffres. Gardez les deux téléphones côte à côte."
+            "value" : "Sur l'appareil parent, scannez ce code ou saisissez les 6 chiffres. Gardez les deux appareils côte à côte."
           }
         }
       }
@@ -1554,13 +1707,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "The two phones run different versions of the app. Update both."
+            "value" : "The two devices run different versions of the app. Update both."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Les deux téléphones n'ont pas la même version de l'app. Mettez-les à jour."
+            "value" : "Les deux appareils n'ont pas la même version de l'app. Mettez-les à jour."
           }
         }
       }
@@ -1571,13 +1724,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Baby side not found. Open the pairing screen on the other phone and keep the two devices side by side."
+            "value" : "Baby side not found. Open the pairing screen on the other device and keep the two devices side by side."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Côté bébé introuvable. Ouvrez l'écran d'appairage sur l'autre téléphone et gardez les deux appareils côte à côte."
+            "value" : "Côté bébé introuvable. Ouvrez l'écran d'appairage sur l'autre appareil et gardez les deux appareils côte à côte."
           }
         }
       }
@@ -1792,13 +1945,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "The baby-side phone is running hot. Move it away from any heat source."
+            "value" : "The baby-side device is running hot. Move it away from any heat source."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Le téléphone côté bébé chauffe. Éloignez-le de toute source de chaleur."
+            "value" : "L'appareil côté bébé chauffe. Éloignez-le de toute source de chaleur."
           }
         }
       }
@@ -1809,13 +1962,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Start monitoring again on the phone in the room."
+            "value" : "Start monitoring again on the device in the room."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Relancez la surveillance sur le téléphone de la chambre."
+            "value" : "Relancez la surveillance sur l'appareil de la chambre."
           }
         }
       }
@@ -1867,6 +2020,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "En direct · %@"
+          }
+        }
+      }
+    },
+    "parent.lowLight" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Low light"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pénombre"
           }
         }
       }
@@ -2007,6 +2177,40 @@
         }
       }
     },
+    "parent.power.low" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Baby side battery is low"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Batterie faible côté bébé"
+          }
+        }
+      }
+    },
+    "parent.power.unplugged" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The baby side is unplugged"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le côté bébé n'est plus branché"
+          }
+        }
+      }
+    },
     "parent.reconnecting" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -2126,6 +2330,74 @@
         }
       }
     },
+    "parent.whiteNoise" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "White noise"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bruit blanc"
+          }
+        }
+      }
+    },
+    "parent.whiteNoise.hour" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1 hour"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1 heure"
+          }
+        }
+      }
+    },
+    "parent.whiteNoise.minutes %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ min"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ min"
+          }
+        }
+      }
+    },
+    "parent.whiteNoise.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "White noise in the room"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bruit blanc dans la chambre"
+          }
+        }
+      }
+    },
     "role.baby.detail" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -2166,13 +2438,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "We run no server. The picture goes straight from one phone to the other, encrypted end to end."
+            "value" : "We run no server. The picture goes straight from one device to the other, encrypted end to end."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Aucun serveur chez nous. L'image va directement d'un téléphone à l'autre, chiffrée de bout en bout."
+            "value" : "Aucun serveur chez nous. L'image va directement d'un appareil à l'autre, chiffrée de bout en bout."
           }
         }
       }
@@ -2275,6 +2547,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Moyenne"
+          }
+        }
+      }
+    },
+    "settings.addParent" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add a parent"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ajouter un parent"
           }
         }
       }
@@ -2404,13 +2693,81 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "After unpairing, the two phones must be linked again."
+            "value" : "After unpairing, the devices must be linked again."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Après une dissociation, les deux téléphones doivent être reliés à nouveau."
+            "value" : "Après une dissociation, les appareils doivent être reliés à nouveau."
+          }
+        }
+      }
+    },
+    "settings.parent %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Parent %@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Parent %@"
+          }
+        }
+      }
+    },
+    "settings.parents" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Linked parents"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Parents reliés"
+          }
+        }
+      }
+    },
+    "settings.parents.footer" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Two parent devices can follow the same room. Each is linked separately."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deux appareils parents peuvent suivre la même chambre. Chacun est relié séparément."
+          }
+        }
+      }
+    },
+    "settings.removeParent" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Remove"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Retirer"
           }
         }
       }

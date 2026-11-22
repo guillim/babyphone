@@ -31,6 +31,7 @@ struct RoleSelectionView: View {
                     .padding(.top, 8)
             }
             .padding(20)
+            .readableWidth()
         }
     }
 

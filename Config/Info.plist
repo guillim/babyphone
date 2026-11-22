@@ -10,9 +10,9 @@
 		<string>_nid-pair._tcp</string>
 	</array>
 	<key>NSCameraUsageDescription</key>
-	<string>Côté bébé, la caméra filme la chambre pour le téléphone parent. Côté parent, elle scanne le QR code d'appairage.</string>
+	<string>Côté bébé, la caméra filme la chambre pour l'appareil parent. Côté parent, elle scanne le QR code d'appairage.</string>
 	<key>NSLocalNetworkUsageDescription</key>
-	<string>Les deux téléphones se trouvent et se connectent directement sur votre réseau Wi-Fi.</string>
+	<string>Les deux appareils se trouvent et se connectent directement sur votre réseau Wi-Fi.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Côté bébé, le micro écoute la chambre. Côté parent, il sert à parler à votre bébé.</string>
 	<key>UIBackgroundModes</key>
@@ -27,6 +27,13 @@
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>
+	</array>
+	<key>UISupportedInterfaceOrientations~ipad</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+		<string>UIInterfaceOrientationPortraitUpsideDown</string>
+		<string>UIInterfaceOrientationLandscapeLeft</string>
+		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
 	<key>UIUserInterfaceStyle</key>
 	<string>Dark</string>

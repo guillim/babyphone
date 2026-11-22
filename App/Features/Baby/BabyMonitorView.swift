@@ -64,6 +64,7 @@ struct BabyMonitorView: View {
             .accessibilityIdentifier("baby.settings")
         }
         .padding(20)
+        .readableWidth()
     }
 
     private var monitoring: some View {
@@ -74,7 +75,7 @@ struct BabyMonitorView: View {
                     Text(model.roomName)
                         .font(Theme.heading(.title2))
                         .foregroundStyle(Theme.text)
-                    Text(isParentConnected ? "baby.parent.connected" : "baby.parent.waiting")
+                    Text(parentsText)
                         .font(.subheadline)
                         .foregroundStyle(isParentConnected ? Theme.status : Theme.secondaryText)
                         .accessibilityIdentifier(isParentConnected ? "baby.parentConnected" : "baby.parentWaiting")
@@ -114,6 +115,7 @@ struct BabyMonitorView: View {
                 .accessibilityIdentifier("baby.stop")
             }
             .padding(20)
+            .readableWidth()
         }
         // A dimmed screen should show as little light as possible.
         .opacity(model.isScreenDimmed ? 0.35 : 1)
@@ -133,7 +135,15 @@ struct BabyMonitorView: View {
     }
 
     private var isParentConnected: Bool {
-        if case .connected = model.link { true } else { false }
+        !model.connectedRoutes.isEmpty
+    }
+
+    private var parentsText: LocalizedStringKey {
+        switch model.connectedRoutes.count {
+        case 0: "baby.parent.waiting"
+        case 1: "baby.parent.connected"
+        default: "baby.parent.connectedTwo"
+        }
     }
 
     @ViewBuilder private var batteryText: some View {
@@ -151,11 +161,8 @@ struct BabyMonitorView: View {
     }
 
     private var linkText: LocalizedStringKey {
-        switch model.link {
-        case .connected(.local): "baby.link.local"
-        case .connected(.remote): "baby.link.remote"
-        case .waiting, .stopped: "baby.link.waiting"
-        }
+        if model.connectedRoutes.isEmpty { return "baby.link.waiting" }
+        return model.connectedRoutes.contains(.remote) ? "baby.link.remote" : "baby.link.local"
     }
 
     private var remoteText: LocalizedStringKey {

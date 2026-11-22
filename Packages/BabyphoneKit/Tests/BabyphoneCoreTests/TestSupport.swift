@@ -268,6 +268,16 @@ final class Recorder<Value: Sendable & Equatable>: @unchecked Sendable {
         return false
     }
 
+    /// Waits until `count` values satisfying `predicate` have been seen. Returns false on timeout.
+    func waitForCount(_ count: Int, timeout: Duration = .seconds(5), _ predicate: @Sendable (Value) -> Bool) async -> Bool {
+        let deadline = ContinuousClock.now + timeout
+        while ContinuousClock.now < deadline {
+            if all.filter(predicate).count >= count { return true }
+            try? await Task.sleep(for: .milliseconds(5))
+        }
+        return false
+    }
+
     /// Waits until the most recent value satisfies `predicate`. Returns false on timeout.
     func waitForLatest(timeout: Duration = .seconds(5), _ predicate: @Sendable (Value) -> Bool) async -> Bool {
         let deadline = ContinuousClock.now + timeout

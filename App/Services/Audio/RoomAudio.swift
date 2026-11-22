@@ -2,7 +2,7 @@
 import BabyphoneCore
 
 /// Baby-side audio that runs whether or not a parent unit is connected:
-/// measures the sound level in the room and plays the lullaby.
+/// measures the sound level in the room, and plays the lullaby and the white noise.
 final class RoomAudio: @unchecked Sendable {
     enum Failure: Error {
         case microphoneUnavailable
@@ -17,6 +17,8 @@ final class RoomAudio: @unchecked Sendable {
     private let engine = AVAudioEngine()
     private let lullabyPlayer = AVAudioPlayerNode()
     private let lullabyBuffer: AVAudioPCMBuffer?
+    private let whiteNoisePlayer = AVAudioPlayerNode()
+    private let whiteNoiseBuffer: AVAudioPCMBuffer?
     /// Every use of the engine goes through this queue: system notifications and the
     /// watchdog arrive on their own threads, and the engine is not safe to share.
     private let queue = DispatchQueue(label: "nid.room-audio")
@@ -25,14 +27,19 @@ final class RoomAudio: @unchecked Sendable {
     // Only touched on `queue`.
     private var isRunning = false
     private var isLullabyPlaying = false
+    private var isWhiteNoisePlaying = false
     private var observers: [any NSObjectProtocol] = []
     private var watchdog: (any DispatchSourceTimer)?
 
     init() {
         lullabyBuffer = AVAudioPCMBuffer.mono(samples: ToneSynthesizer.lullaby(sampleRate: 44_100), sampleRate: 44_100)
-        engine.attach(lullabyPlayer)
-        engine.connect(lullabyPlayer, to: engine.mainMixerNode, format: lullabyBuffer?.format)
+        whiteNoiseBuffer = AVAudioPCMBuffer.mono(samples: ToneSynthesizer.whiteNoise(sampleRate: 44_100), sampleRate: 44_100)
+        for (player, buffer) in [(lullabyPlayer, lullabyBuffer), (whiteNoisePlayer, whiteNoiseBuffer)] {
+            engine.attach(player)
+            engine.connect(player, to: engine.mainMixerNode, format: buffer?.format)
+        }
         lullabyPlayer.volume = 0.6
+        whiteNoisePlayer.volume = 0.5
     }
 
     func start() throws {
@@ -69,11 +76,13 @@ final class RoomAudio: @unchecked Sendable {
         queue.sync {
             isRunning = false
             isLullabyPlaying = false
+            isWhiteNoisePlaying = false
             watchdog?.cancel()
             watchdog = nil
             observers.forEach { NotificationCenter.default.removeObserver($0) }
             observers = []
             lullabyPlayer.stop()
+            whiteNoisePlayer.stop()
             engine.inputNode.removeTap(onBus: 0)
             engine.stop()
         }
@@ -83,9 +92,20 @@ final class RoomAudio: @unchecked Sendable {
         queue.async { [self] in
             isLullabyPlaying = isPlaying
             if isPlaying {
-                playLullaby()
+                loop(lullabyBuffer, on: lullabyPlayer)
             } else {
                 lullabyPlayer.stop()
+            }
+        }
+    }
+
+    func setWhiteNoisePlaying(_ isPlaying: Bool) {
+        queue.async { [self] in
+            isWhiteNoisePlaying = isPlaying
+            if isPlaying {
+                loop(whiteNoiseBuffer, on: whiteNoisePlayer)
+            } else {
+                whiteNoisePlayer.stop()
             }
         }
     }
@@ -115,15 +135,18 @@ final class RoomAudio: @unchecked Sendable {
         engine.prepare()
         try engine.start()
         if isLullabyPlaying {
-            playLullaby()
+            loop(lullabyBuffer, on: lullabyPlayer)
+        }
+        if isWhiteNoisePlaying {
+            loop(whiteNoiseBuffer, on: whiteNoisePlayer)
         }
     }
 
-    private func playLullaby() {
-        guard let lullabyBuffer, engine.isRunning else { return }
-        lullabyPlayer.stop()
-        lullabyPlayer.scheduleBuffer(lullabyBuffer, at: nil, options: .loops)
-        lullabyPlayer.play()
+    private func loop(_ buffer: AVAudioPCMBuffer?, on player: AVAudioPlayerNode) {
+        guard let buffer, engine.isRunning else { return }
+        player.stop()
+        player.scheduleBuffer(buffer, at: nil, options: .loops)
+        player.play()
     }
 }
 

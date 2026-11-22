@@ -37,6 +37,7 @@ public final class WebRTCSession: NSObject, PeerSession, @unchecked Sendable {
     private let lock = NSLock()
     private var dataChannel: RTCDataChannel?
     private var talkBackSender: RTCRtpSender?
+    private var videoSender: RTCRtpSender?
     private var incomingVideo: RTCVideoTrack?
     private var isTransportConnected = false
     private var isChannelOpen = false
@@ -73,6 +74,31 @@ public final class WebRTCSession: NSObject, PeerSession, @unchecked Sendable {
             encoding.maxFramerate = NSNumber(value: maxFramerate)
         }
         videoSender.parameters = parameters
+        lock.withLock { self.videoSender = videoSender }
+    }
+
+    /// Sends the picture to this peer, or holds it back while the sound keeps flowing.
+    /// Each peer has its own setting, so one parent's audio-only mode leaves the other's picture alone.
+    public func setOutgoingVideoActive(_ isActive: Bool) {
+        guard let sender = lock.withLock({ videoSender }) else { return }
+        let parameters = sender.parameters
+        for encoding in parameters.encodings {
+            encoding.isActive = isActive
+        }
+        sender.parameters = parameters
+    }
+
+    /// How many frames of the incoming picture have been decoded so far.
+    /// A count that stops rising while the picture should flow means the stream has frozen.
+    public func decodedVideoFrameCount() async -> Int? {
+        await withCheckedContinuation { continuation in
+            connection.statistics { report in
+                let inbound = report.statistics.values.first {
+                    $0.type == "inbound-rtp" && ($0.values["kind"] as? String) == "video"
+                }
+                continuation.resume(returning: (inbound?.values["framesDecoded"] as? NSNumber)?.intValue)
+            }
+        }
     }
 
     /// The picture received from the other end, once its offer has been accepted.

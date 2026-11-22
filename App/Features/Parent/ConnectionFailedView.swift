@@ -4,7 +4,8 @@ import SwiftUI
 /// Shown when the parent unit cannot reach the baby unit at all.
 ///
 /// The app has no relay, so some networks simply cannot be crossed. This
-/// screen says so plainly and tells the parent what to try.
+/// screen says so plainly and walks the parent through what does work: a
+/// personal hotspot, or mobile data on both sides.
 struct ConnectionFailedView: View {
     let reason: ParentConnector.UnreachableReason
     let retry: @MainActor () -> Void
@@ -49,6 +50,7 @@ struct ConnectionFailedView: View {
                     .accessibilityIdentifier("failure.journal")
             }
             .padding(20)
+            .readableWidth()
         }
     }
 
@@ -70,7 +72,7 @@ struct ConnectionFailedView: View {
 
     private var tips: [String] {
         switch reason {
-        case .noDirectPath: ["failure.tip.wifi", "failure.tip.vpn", "failure.tip.place"]
+        case .noDirectPath: ["failure.tip.hotspot", "failure.tip.cellular", "failure.tip.vpn", "failure.tip.place"]
         case .babyOffline: ["failure.tip.babyOpen", "failure.tip.babyNetwork"]
         case .rendezvousUnavailable: ["failure.tip.icloud", "failure.tip.sameWifi"]
         }

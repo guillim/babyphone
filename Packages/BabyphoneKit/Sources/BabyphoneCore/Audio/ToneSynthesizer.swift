@@ -43,8 +43,50 @@ public enum ToneSynthesizer {
         return samples
     }
 
-    /// Adds one struck-metal note. Its tail wraps around the end of the buffer so the loop has no gap.
-    private static func addChime(frequency: Double, at start: Double, into samples: inout [Float], sampleRate: Double) {
+    /// A short rising chime, played once when something needs the parent's attention.
+    public static func chime(sampleRate: Double) -> [Float] {
+        let noteSpacing = 0.16
+        var samples = [Float](repeating: 0, count: Int(1.6 * sampleRate))
+        for (index, semitone) in [7, 12, 16].enumerated() {
+            let frequency = 523.25 * pow(2, Double(semitone) / 12)
+            addChime(frequency: frequency, at: Double(index) * noteSpacing, into: &samples, sampleRate: sampleRate, wraps: false, gain: 0.3)
+        }
+        return samples
+    }
+
+    /// Soft, steady noise that masks household sounds, as mono samples that loop cleanly.
+    public static func whiteNoise(sampleRate: Double) -> [Float] {
+        let duration = 6.0, overlap = 0.5
+        let count = Int(duration * sampleRate), overlapCount = Int(overlap * sampleRate)
+        // A fixed seed: the same noise on every device, and in every test.
+        var state: UInt64 = 0x9E37_79B9_7F4A_7C15
+        var smoothed = 0.0
+        var raw = [Float](repeating: 0, count: count + overlapCount)
+        for index in raw.indices {
+            state = state &* 6_364_136_223_846_793_005 &+ 1_442_695_040_888_963_407
+            let white = Double(state >> 11) / Double(1 << 53) * 2 - 1
+            // Rolling off the high end turns a harsh hiss into something closer to rain.
+            smoothed += 0.12 * (white - smoothed)
+            raw[index] = Float(0.9 * smoothed)
+        }
+        // The tail fades into the head, so the loop has no click.
+        var samples = Array(raw[..<count])
+        for index in 0..<overlapCount {
+            let fade = Float(index) / Float(overlapCount)
+            samples[index] = raw[index] * fade + raw[count + index] * (1 - fade)
+        }
+        return samples
+    }
+
+    /// Adds one struck-metal note. In a loop, its tail wraps around the end of the buffer so there is no gap.
+    private static func addChime(
+        frequency: Double,
+        at start: Double,
+        into samples: inout [Float],
+        sampleRate: Double,
+        wraps: Bool = true,
+        gain: Double = 0.16
+    ) {
         let ringTime = 2.4
         let decay = 0.55
         let attack = 0.004
@@ -57,7 +99,9 @@ public enum ToneSynthesizer {
             for partial in partials {
                 value += partial.gain * sin(2 * .pi * frequency * partial.ratio * time)
             }
-            samples[(first + offset) % samples.count] += Float(0.16 * envelope * value)
+            let position = first + offset
+            guard wraps || position < samples.count else { break }
+            samples[position % samples.count] += Float(gain * envelope * value)
         }
     }
 }

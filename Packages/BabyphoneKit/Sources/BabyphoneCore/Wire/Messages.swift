@@ -24,6 +24,9 @@ public enum ParentMessage: Codable, Sendable, Equatable {
     case hello(lastJournalRevision: Int64)
     case setNightLight(Bool)
     case setLullaby(Bool)
+    /// Plays white noise for this many minutes, or stops it when nil.
+    case setWhiteNoise(minutes: Int?)
+    case setLowLight(Bool)
     case setVideoEnabled(Bool)
     case setSensitivity(Sensitivity)
     /// The parent is holding the talk button.

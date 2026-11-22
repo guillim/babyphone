@@ -22,6 +22,10 @@ public struct MonitorStatus: Codable, Sendable, Equatable {
     public var isVideoEnabled: Bool
     public var isNightLightOn: Bool
     public var isLullabyPlaying: Bool
+    /// When the white noise will stop by itself, or nil when it is off.
+    public var whiteNoiseEndsAt: Date?
+    /// The camera trades frame rate for longer exposure, to see in a dim room.
+    public var isLowLightOn: Bool
 
     public init(
         soundLevel: Double = 0,
@@ -33,7 +37,9 @@ public struct MonitorStatus: Codable, Sendable, Equatable {
         sensitivity: Sensitivity = .medium,
         isVideoEnabled: Bool = true,
         isNightLightOn: Bool = false,
-        isLullabyPlaying: Bool = false
+        isLullabyPlaying: Bool = false,
+        whiteNoiseEndsAt: Date? = nil,
+        isLowLightOn: Bool = false
     ) {
         self.soundLevel = soundLevel
         self.isNoiseActive = isNoiseActive
@@ -45,5 +51,7 @@ public struct MonitorStatus: Codable, Sendable, Equatable {
         self.isVideoEnabled = isVideoEnabled
         self.isNightLightOn = isNightLightOn
         self.isLullabyPlaying = isLullabyPlaying
+        self.whiteNoiseEndsAt = whiteNoiseEndsAt
+        self.isLowLightOn = isLowLightOn
     }
 }

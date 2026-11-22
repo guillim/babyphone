@@ -1,17 +1,21 @@
 import BabyphoneCore
 import Foundation
 
-/// What this phone is and whether it is paired: decides which screen the app shows.
+/// What this device is and what it is paired with: decides which screen the app shows.
 @MainActor
 final class AppModel: ObservableObject {
     enum Stage: Equatable {
         case loading
         case choosingRole
         case pairing(DeviceRole)
-        case monitoring(DeviceRole, PairingKey)
+        /// A parent unit holds one key. A baby unit holds one per paired parent unit.
+        case monitoring(DeviceRole, [PairingKey])
         /// The local database cannot be opened. Nothing else can work without it.
         case broken
     }
+
+    /// How many parent units one baby unit serves.
+    static let maxParents = 2
 
     @Published private(set) var stage = Stage.loading
 
@@ -19,6 +23,9 @@ final class AppModel: ObservableObject {
     private(set) var database: AppDatabase?
 
     var settings: SettingsStore? { database.map(SettingsStore.init) }
+
+    /// Whether leaving the pairing screen returns to monitoring, because a pairing already exists.
+    var canCancelPairing: Bool { !PairingKeychain.load().isEmpty }
 
     func load() async {
         guard stage == .loading else { return }
@@ -44,12 +51,39 @@ final class AppModel: ObservableObject {
     }
 
     func completePairing(as role: DeviceRole, with key: PairingKey) async {
-        PairingKeychain.save(key)
+        // A parent unit follows one baby unit. A baby unit adds the new parent to those it has.
+        let keys = role == .baby ? Array((PairingKeychain.load() + [key]).suffix(Self.maxParents)) : [key]
+        PairingKeychain.save(keys)
         try? await settings?.set(ISO8601DateFormatter().string(from: Date()), for: .pairedAt)
-        stage = .monitoring(role, key)
+        stage = .monitoring(role, keys)
     }
 
-    /// Forgets the other phone. Both phones must pair again afterwards.
+    /// Baby unit: opens the pairing screen to link one more parent unit.
+    func addParent() {
+        guard case .monitoring(.baby, let keys) = stage, keys.count < Self.maxParents else { return }
+        stage = .pairing(.baby)
+    }
+
+    /// Leaves the pairing screen without pairing.
+    func cancelPairing() async {
+        guard case .pairing(let role) = stage else { return }
+        let keys = PairingKeychain.load()
+        if keys.isEmpty {
+            await resetRole()
+        } else {
+            stage = .monitoring(role, keys)
+        }
+    }
+
+    /// Baby unit: forgets one parent unit. The other one stays paired.
+    func removeParent(_ key: PairingKey) {
+        guard case .monitoring(.baby, let keys) = stage else { return }
+        let remaining = keys.filter { $0 != key }
+        PairingKeychain.save(remaining)
+        stage = remaining.isEmpty ? .pairing(.baby) : .monitoring(.baby, remaining)
+    }
+
+    /// Forgets every paired device. The devices must pair again afterwards.
     func unpair() async {
         guard case .monitoring(let role, _) = stage else { return }
         await forgetPairing()
@@ -73,19 +107,19 @@ final class AppModel: ObservableObject {
         let role = parts.first.flatMap { DeviceRole(rawValue: String($0)) }
         try? await settings?.set(role?.rawValue, for: .role)
         if parts.contains("paired") {
-            PairingKeychain.save(.random())
+            PairingKeychain.save([.random()])
         }
     }
     #endif
 
     private func stage(for role: DeviceRole?) -> Stage {
         guard let role else { return .choosingRole }
-        guard let key = PairingKeychain.load() else { return .pairing(role) }
-        return .monitoring(role, key)
+        let keys = PairingKeychain.load()
+        return keys.isEmpty ? .pairing(role) : .monitoring(role, keys)
     }
 
     private func forgetPairing() async {
-        PairingKeychain.delete()
+        PairingKeychain.save([])
         try? await settings?.set(nil, for: .pairedAt)
         guard let database else { return }
         // The journal belongs to the pairing it was recorded under.

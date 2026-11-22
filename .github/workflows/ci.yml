@@ -67,15 +67,25 @@ jobs:
         run: cat Babyphone.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved
 
   screens:
-    name: Screens in the simulator
+    name: Screens (${{ matrix.device }})
     runs-on: macos-26
     timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        # The smallest supported iPhone, where everything must fit, and an iPad.
+        device: [iPhone SE, iPad]
     steps:
       - uses: actions/checkout@v5
-      - name: Create the smallest supported iPhone
+      - name: Create the simulator
         run: |
-          # Every screen must fit an iPhone SE. Fall back to any iPhone if this Xcode has none.
-          device=$(xcrun simctl create nid-small "iPhone SE (3rd generation)" || xcrun simctl create nid-small "iPhone 17")
+          if [ "${{ matrix.device }}" = "iPad" ]; then
+            # iPad model names change with every Xcode: take the newest one this Xcode knows.
+            type=$(xcrun simctl list devicetypes | grep -oE 'com\.apple\.CoreSimulator\.SimDeviceType\.iPad[^)]*' | tail -1)
+          else
+            type="iPhone SE (3rd generation)"
+          fi
+          device=$(xcrun simctl create nid-screens "$type" || xcrun simctl create nid-screens "iPhone 17")
           # Boots and waits until the simulator is fully up, so the tests do not time out on a cold start.
           xcrun simctl bootstatus "$device" -b
           xcrun simctl list devices | grep "$device"
@@ -95,11 +105,20 @@ jobs:
       - name: Export the screenshots
         if: always()
         run: xcrun xcresulttool export attachments --path Screens.xcresult --output-path Screenshots
+      - name: Print small copies of the screenshots
+        if: always()
+        run: |
+          cat Screenshots/manifest.json || true
+          for file in Screenshots/*.png; do
+            small="/tmp/$(basename "$file" .png).jpg"
+            sips -Z 520 -s format jpeg -s formatOptions 50 "$file" --out "$small" >/dev/null
+            echo "SHOT $(basename "$file") $(base64 -i "$small")"
+          done
       - name: Keep the screenshots
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: screenshots
+          name: screenshots ${{ matrix.device }}
           path: Screenshots
 
   two-phones:
@@ -163,6 +182,15 @@ jobs:
         run: |
           for result in Baby-*.xcresult Parent-*.xcresult; do
             xcrun xcresulttool export attachments --path "$result" --output-path "Screenshots/${result%.xcresult}" || true
+          done
+      - name: Print small copies of the screenshots
+        if: always()
+        run: |
+          cat Screenshots/*/manifest.json || true
+          for file in Screenshots/*/*.png; do
+            small="/tmp/$(basename "$file" .png).jpg"
+            sips -Z 440 -s format jpeg -s formatOptions 50 "$file" --out "$small" >/dev/null
+            echo "SHOT $(basename "$file") $(base64 -i "$small")"
           done
       - name: Keep the screenshots and logs
         if: always()

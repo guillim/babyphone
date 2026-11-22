@@ -8,9 +8,10 @@ PRODUCT_BUNDLE_IDENTIFIER = com.guillim.babyphone
 MARKETING_VERSION = 0.1.0
 CURRENT_PROJECT_VERSION = 1
 
-// iOS 16 keeps older iPhones (iPhone 8 and later) usable as the baby unit.
+// iOS 16 keeps older devices (iPhone 8 and later, iPad 5 and later) usable as the baby unit.
 IPHONEOS_DEPLOYMENT_TARGET = 16.0
-TARGETED_DEVICE_FAMILY = 1
+// iPhone and iPad, for both roles.
+TARGETED_DEVICE_FAMILY = 1,2
 SWIFT_VERSION = 6.0
 
 // Your Apple Developer team goes in Config/Local.xcconfig, which is not committed.

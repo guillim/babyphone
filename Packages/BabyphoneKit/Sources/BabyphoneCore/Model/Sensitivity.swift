@@ -6,15 +6,14 @@ public enum Sensitivity: String, Codable, Sendable, CaseIterable {
     case medium
     case high
 
-    /// Sound level, in dBFS, at or above which a sound counts as noise.
+    /// How far above the room's steady background level a sound must rise to count as noise.
     ///
-    /// These values are a starting point and need calibrating on real devices:
-    /// a quiet room sits near -55 dBFS, speech at one metre near -30 dBFS.
-    public var thresholdDecibels: Double {
+    /// These values are a starting point and need tuning on real devices.
+    public var marginDecibels: Double {
         switch self {
-        case .low: -25
-        case .medium: -35
-        case .high: -45
+        case .low: 24
+        case .medium: 15
+        case .high: 8
         }
     }
 }

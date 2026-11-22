@@ -60,14 +60,16 @@ struct BabyPairingView: View {
                     .foregroundStyle(Theme.secondaryText)
                     .multilineTextAlignment(.center)
 
-                Button("pairing.changeRole") {
-                    Task { await app.resetRole() }
+                // Adding a second parent: going back keeps the first one. First pairing: going back changes role.
+                Button(app.canCancelPairing ? "common.cancel" : "pairing.changeRole") {
+                    Task { await app.cancelPairing() }
                 }
                 .font(.footnote.weight(.semibold))
                 .frame(minHeight: Theme.minimumTouchTarget)
                 .accessibilityIdentifier("pairing.changeRole")
             }
             .padding(20)
+            .readableWidth()
         }
         .onAppear {
             model.start { key in

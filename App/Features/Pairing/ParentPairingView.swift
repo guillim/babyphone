@@ -85,6 +85,7 @@ struct ParentPairingView: View {
                 .frame(minHeight: Theme.minimumTouchTarget)
             }
             .padding(20)
+            .readableWidth()
         }
         .scrollDismissesKeyboard(.interactively)
     }

@@ -9,6 +9,10 @@ public struct JournalEvent: Codable, Sendable, Equatable, Identifiable {
         case noise
         case linkLost
         case linkRestored
+        /// The baby unit's charger was disconnected.
+        case unplugged
+        /// The baby unit is running on a low battery.
+        case batteryLow
     }
 
     public var id: UUID

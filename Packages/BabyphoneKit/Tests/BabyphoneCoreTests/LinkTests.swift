@@ -260,6 +260,54 @@ import Testing
         await host.stop()
     }
 
+    @Test func reconnectsOnRequest() async throws {
+        let host = makeHost(remote: false), connector = makeConnector(remote: false)
+        let parentStates = Recorder(connector.states), hostStates = Recorder(host.states)
+        await host.start()
+        await connector.start()
+        #expect(await parentStates.waitFor { $0 == .connected(.local) })
+        #expect(await hostStates.waitFor { $0 == .connected(.local) })
+
+        // The link answers but the picture is frozen: the app asks for a fresh connection.
+        await connector.reconnect()
+        #expect(await parentStates.waitForCount(2) { $0 == .connected(.local) })
+        #expect(media.createdSessions.current == 4)
+
+        await connector.stop()
+        await host.stop()
+    }
+
+    @Test func twoParentsFollowTheSameBabyUnit() async throws {
+        // Each parent unit has its own key, its own listener and its own connection.
+        let firstNetwork = FakeLocalNetwork(), secondNetwork = FakeLocalNetwork()
+        let firstHost = BabyHost(makeSession: media.factory, listener: firstNetwork, rendezvous: nil, timings: .fast)
+        let secondHost = BabyHost(makeSession: media.factory, listener: secondNetwork, rendezvous: nil, timings: .fast)
+        let firstParent = ParentConnector(makeSession: media.factory, local: firstNetwork, rendezvous: nil, timings: .fast)
+        let secondParent = ParentConnector(makeSession: media.factory, local: secondNetwork, rendezvous: nil, timings: .fast)
+        let firstStates = Recorder(firstParent.states), secondStates = Recorder(secondParent.states)
+        let firstHostStates = Recorder(firstHost.states), secondHostStates = Recorder(secondHost.states)
+        await firstHost.start()
+        await secondHost.start()
+        await firstParent.start()
+        await secondParent.start()
+        #expect(await firstStates.waitFor { $0 == .connected(.local) })
+        #expect(await secondStates.waitFor { $0 == .connected(.local) })
+        #expect(await firstHostStates.waitFor { $0 == .connected(.local) })
+        #expect(await secondHostStates.waitFor { $0 == .connected(.local) })
+
+        // One parent leaves. The other is not disturbed.
+        await firstParent.stop()
+        #expect(await firstHostStates.waitForLatest { $0 == .waiting })
+        await secondHost.send(Data("still here".utf8))
+        var atSecond = secondParent.payloads.makeAsyncIterator()
+        #expect(await atSecond.next() == Data("still here".utf8))
+        #expect(secondStates.all.last == .connected(.local))
+
+        await secondParent.stop()
+        await firstHost.stop()
+        await secondHost.stop()
+    }
+
     @Test func stoppingTheHostDisconnectsTheParent() async throws {
         let host = makeHost(), connector = makeConnector()
         let parentStates = Recorder(connector.states), hostStates = Recorder(host.states)

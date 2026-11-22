@@ -6,6 +6,7 @@ enum AlertNotifier {
     private enum Identifier {
         static let noise = "noise"
         static let linkLost = "link-lost"
+        static let power = "power"
         static let watchdog = "watchdog"
     }
 
@@ -22,6 +23,10 @@ enum AlertNotifier {
 
     static func notifyLinkLost() {
         post(Identifier.linkLost, title: String(localized: "notification.linkLost.title"), body: String(localized: "notification.linkLost.body"))
+    }
+
+    static func notifyPower(title: String) {
+        post(Identifier.power, title: title, body: String(localized: "notification.power.body"))
     }
 
     /// Pushes back a notification that only fires if the app stops running.

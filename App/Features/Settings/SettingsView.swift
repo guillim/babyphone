@@ -20,6 +20,12 @@ struct SettingsView: View {
         var id: Self { self }
     }
 
+    /// The parent units paired with this baby unit.
+    private var parentKeys: [PairingKey] {
+        guard case .monitoring(.baby, let keys) = app.stage else { return [] }
+        return keys
+    }
+
     var body: some View {
         NavigationStack {
             Form {
@@ -36,6 +42,29 @@ struct SettingsView: View {
                         Text("settings.room")
                     } footer: {
                         Text("settings.camera.footer")
+                    }
+
+                    Section {
+                        ForEach(Array(parentKeys.enumerated()), id: \.element.rendezvousID) { index, key in
+                            HStack {
+                                Text("settings.parent \(String(index + 1))")
+                                Spacer()
+                                Button("settings.removeParent", role: .destructive) {
+                                    leave { app.removeParent(key) }
+                                }
+                                .buttonStyle(.borderless)
+                            }
+                        }
+                        if parentKeys.count < AppModel.maxParents {
+                            Button("settings.addParent") {
+                                leave { app.addParent() }
+                            }
+                            .accessibilityIdentifier("settings.addParent")
+                        }
+                    } header: {
+                        Text("settings.parents")
+                    } footer: {
+                        Text("settings.parents.footer")
                     }
                 }
 
@@ -55,7 +84,7 @@ struct SettingsView: View {
                 Section {
                     if let database = app.database {
                         NavigationLink("diagnostics.title") {
-                            DiagnosticsView(database: database, currentPath: parentModel?.currentPath)
+                            DiagnosticsView(database: database, parentModel: parentModel)
                         }
                         .accessibilityIdentifier("settings.diagnostics")
                     }
@@ -106,14 +135,21 @@ struct SettingsView: View {
     }
 
     private func perform(_ action: DestructiveAction) {
-        Task {
-            await babyModel?.stop()
-            await parentModel?.stop()
-            dismiss()
+        leave {
             switch action {
             case .unpair: await app.unpair()
             case .changeRole: await app.resetRole()
             }
+        }
+    }
+
+    /// Stops monitoring and closes the settings before a change that replaces the screen underneath.
+    private func leave(then change: @escaping @MainActor () async -> Void) {
+        Task {
+            await babyModel?.stop()
+            await parentModel?.stop()
+            dismiss()
+            await change()
         }
     }
 }

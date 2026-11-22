@@ -15,7 +15,11 @@ final class ParentMonitorModel: ObservableObject {
     @Published private(set) var events: [JournalEvent] = []
     /// Set while the "noise in the room" banner is showing.
     @Published private(set) var noiseAlert: JournalEvent?
+    /// Set while the banner about the baby unit's power is showing: unplugged, or battery low.
+    @Published private(set) var powerAlert: JournalEvent.Kind?
     @Published private(set) var isAlarmSounding = false
+    /// When the baby unit last reported its status.
+    @Published private(set) var lastSignal: Date?
     /// The baby unit's monitoring was stopped on purpose, on the baby unit.
     @Published private(set) var didBabyStop = false
     @Published private(set) var isTalking = false
@@ -29,6 +33,11 @@ final class ParentMonitorModel: ObservableObject {
     /// such as a phone switching from Wi-Fi to 4G, heal within this time.
     private static let alarmGrace: Duration = .seconds(10)
     private static let housekeepingInterval: Duration = .seconds(30)
+    /// An event older than this is history being synced, not something happening now.
+    private static let alertFreshness: TimeInterval = 60
+    private static let streamCheckInterval: Duration = .seconds(5)
+    /// Checks in a row without a new frame before the stream counts as frozen.
+    private static let frozenChecks = 3
     private static let journalWindow: TimeInterval = 7 * 24 * 3600
     private static let lowVolume: Float = 0.1
 
@@ -44,6 +53,8 @@ final class ParentMonitorModel: ObservableObject {
     private var pendingAlarm: Task<Void, Never>?
     private var hasRecordedLoss = false
     private var lastHealthSample = Date.distantPast
+    private var lastFrameCount: Int?
+    private var checksWithoutFrames = 0
 
     init(key: PairingKey, database: AppDatabase, media: MediaEngine) {
         self.key = key
@@ -94,6 +105,9 @@ final class ParentMonitorModel: ObservableObject {
             Task { [weak self] in
                 repeat { await self?.housekeeping() } while (try? await Task.sleep(for: Self.housekeepingInterval)) != nil
             },
+            Task { [weak self] in
+                while (try? await Task.sleep(for: Self.streamCheckInterval)) != nil { await self?.checkStream() }
+            },
         ]
         await connector.start()
     }
@@ -115,6 +129,8 @@ final class ParentMonitorModel: ObservableObject {
         videoTrack = nil
         status = nil
         noiseAlert = nil
+        powerAlert = nil
+        lastSignal = nil
         isAlarmSounding = false
         hasRecordedLoss = false
     }
@@ -124,6 +140,11 @@ final class ParentMonitorModel: ObservableObject {
         Task { await connector?.retryNow() }
     }
 
+    /// Drops the link and connects again from scratch.
+    func reconnect() {
+        Task { await connector?.reconnect() }
+    }
+
     func silenceAlarm() {
         isAlarmSounding = false
         audio.setAlarmSounding(false)
@@ -131,6 +152,10 @@ final class ParentMonitorModel: ObservableObject {
 
     func dismissNoiseAlert() {
         noiseAlert = nil
+    }
+
+    func dismissPowerAlert() {
+        powerAlert = nil
     }
 
     // MARK: Controls
@@ -148,6 +173,16 @@ final class ParentMonitorModel: ObservableObject {
     func toggleVideo() {
         guard let status else { return }
         send(.setVideoEnabled(!status.isVideoEnabled))
+    }
+
+    func toggleLowLight() {
+        guard let status else { return }
+        send(.setLowLight(!status.isLowLightOn))
+    }
+
+    /// Plays white noise in the room for `minutes`, or stops it when nil.
+    func setWhiteNoise(minutes: Int?) {
+        send(.setWhiteNoise(minutes: minutes))
     }
 
     func setSensitivity(_ sensitivity: Sensitivity) {
@@ -224,11 +259,17 @@ final class ParentMonitorModel: ObservableObject {
         switch message {
         case .status(let newStatus):
             status = newStatus
+            lastSignal = Date()
         case .journal(let received):
             try? await journal.merge(received)
             await reloadJournal()
-            if let noise = received.last(where: { $0.kind == .noise && $0.duration == nil }) {
+            // Only what is happening now rings. The rest is history catching up after a reconnection.
+            let fresh = received.filter { Date().timeIntervalSince($0.date) < Self.alertFreshness }
+            if let noise = fresh.last(where: { $0.kind == .noise && $0.duration == nil }) {
                 raiseNoiseAlert(for: noise)
+            }
+            if let power = fresh.last(where: { $0.kind == .unplugged || $0.kind == .batteryLow }) {
+                raisePowerAlert(power.kind)
             }
         case .stopping:
             didBabyStop = true
@@ -238,10 +279,38 @@ final class ParentMonitorModel: ObservableObject {
 
     private func raiseNoiseAlert(for event: JournalEvent) {
         noiseAlert = event
+        // The chime plays through the app's own audio, so it is heard on silent and in a Focus mode.
+        audio.playChime()
         if DeviceHealth.isInBackground {
             AlertNotifier.notifyNoise()
         } else {
             UINotificationFeedbackGenerator().notificationOccurred(.warning)
+        }
+    }
+
+    private func raisePowerAlert(_ kind: JournalEvent.Kind) {
+        powerAlert = kind
+        audio.playChime()
+        if DeviceHealth.isInBackground {
+            let title = kind == .unplugged ? String(localized: "parent.power.unplugged") : String(localized: "parent.power.low")
+            AlertNotifier.notifyPower(title: title)
+        }
+    }
+
+    /// A link can stay up while the picture stops arriving. Frames that no longer
+    /// come in while the baby unit says it is filming mean a frozen stream: reconnect.
+    private func checkStream() async {
+        guard isConnected, status?.isVideoEnabled == true, let frames = await media.session?.decodedVideoFrameCount() else {
+            lastFrameCount = nil
+            checksWithoutFrames = 0
+            return
+        }
+        checksWithoutFrames = frames == lastFrameCount ? checksWithoutFrames + 1 : 0
+        lastFrameCount = frames
+        if checksWithoutFrames >= Self.frozenChecks {
+            checksWithoutFrames = 0
+            lastFrameCount = nil
+            await connector?.reconnect()
         }
     }
 

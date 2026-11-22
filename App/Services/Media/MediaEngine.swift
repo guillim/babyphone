@@ -17,14 +17,16 @@ final class MediaEngine: @unchecked Sendable {
     }
 }
 
-/// Baby-side media: the microphone and camera tracks sent to the parent unit.
+/// Baby-side media: the microphone and camera tracks, shared by every parent unit.
 final class BabyMedia: @unchecked Sendable {
-    /// A baby monitor needs a recognisable picture, not a sharp one. A small,
-    /// slow stream keeps the phone cool through the night.
+    /// Enough detail to zoom in on a cot, at a frame rate and bitrate an old
+    /// phone can hold all night for two parents.
     private enum VideoQuality {
-        static let targetPixelCount = 640 * 480
+        static let targetPixelCount = 1280 * 720
         static let framesPerSecond = 15
-        static let maxBitrate = 700_000
+        /// In low light the camera may expose each frame for much longer, which a slow frame rate allows.
+        static let lowLightFramesPerSecond = 5
+        static let maxBitrate = 1_200_000
     }
 
     private let engine: MediaEngine
@@ -42,29 +44,34 @@ final class BabyMedia: @unchecked Sendable {
         capturer = RTCCameraVideoCapturer(delegate: videoSource)
     }
 
-    var sessionFactory: PeerSessionFactory {
-        { [self] in
+    /// The media of one parent unit's connection.
+    func makePeer() -> BabyPeerMedia {
+        BabyPeerMedia { [self] in
             let session = try WebRTCSession(factory: engine.factory)
-            session.addOutgoingMedia(audio: audioTrack, video: videoTrack, maxVideoBitrate: VideoQuality.maxBitrate, maxFramerate: VideoQuality.framesPerSecond)
+            session.addOutgoingMedia(
+                audio: audioTrack, video: videoTrack,
+                maxVideoBitrate: VideoQuality.maxBitrate, maxFramerate: VideoQuality.framesPerSecond
+            )
             return session
         }
     }
 
-    /// Whether video frames are sent. When false the parent unit receives audio only.
-    func setVideoEnabled(_ isEnabled: Bool) {
-        videoTrack.isEnabled = isEnabled
-    }
-
     /// Starts the camera facing `position`. Returns false when that camera cannot be used.
     @discardableResult
-    func startCamera(position: AVCaptureDevice.Position) -> Bool {
+    func startCamera(position: AVCaptureDevice.Position, lowLight: Bool) -> Bool {
         guard
             AVCaptureDevice.authorizationStatus(for: .video) == .authorized,
             let device = RTCCameraVideoCapturer.captureDevices().first(where: { $0.position == position }),
             let format = Self.preferredFormat(for: device)
         else { return false }
+        let wanted = lowLight ? VideoQuality.lowLightFramesPerSecond : VideoQuality.framesPerSecond
         let fastestRate = format.videoSupportedFrameRateRanges.map(\.maxFrameRate).max() ?? 30
-        capturer.startCapture(with: device, format: format, fps: min(VideoQuality.framesPerSecond, Int(fastestRate)))
+        capturer.startCapture(with: device, format: format, fps: min(wanted, Int(fastestRate))) { _ in
+            // Where the sensor supports it, the system brightens a dim picture by itself.
+            guard device.isLowLightBoostSupported, (try? device.lockForConfiguration()) != nil else { return }
+            device.automaticallyEnablesLowLightBoostWhenAvailable = lowLight
+            device.unlockForConfiguration()
+        }
         return true
     }
 
@@ -80,6 +87,30 @@ final class BabyMedia: @unchecked Sendable {
         return RTCCameraVideoCapturer.supportedFormats(for: device).min {
             abs(pixelCount($0) - VideoQuality.targetPixelCount) < abs(pixelCount($1) - VideoQuality.targetPixelCount)
         }
+    }
+}
+
+/// What the baby unit sends to one parent unit, across that parent's successive connections.
+final class BabyPeerMedia: @unchecked Sendable {
+    private let makeSession: @Sendable () throws -> WebRTCSession
+    private let lock = NSLock()
+    private var latestSession: WebRTCSession?
+
+    fileprivate init(makeSession: @escaping @Sendable () throws -> WebRTCSession) {
+        self.makeSession = makeSession
+    }
+
+    var sessionFactory: PeerSessionFactory {
+        { [self] in
+            let session = try makeSession()
+            lock.withLock { latestSession = session }
+            return session
+        }
+    }
+
+    /// Sends the picture to this parent, or only the sound.
+    func setVideoActive(_ isActive: Bool) {
+        lock.withLock { latestSession }?.setOutgoingVideoActive(isActive)
     }
 }
 
@@ -108,7 +139,6 @@ final class ParentMedia: @unchecked Sendable {
     }
 
     /// Sends the parent's voice to the baby unit, or stops sending it.
-    ///
     /// Nothing is sent to the baby unit unless a track is attached.
     func setTalking(_ isTalking: Bool) {
         let (session, track) = lock.withLock { () -> (WebRTCSession?, RTCAudioTrack?) in

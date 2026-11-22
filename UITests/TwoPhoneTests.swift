@@ -90,7 +90,11 @@ final class TwoPhoneTests: AppTestCase {
         attachScreenshot(named: "parent-live")
 
         // Every control a parent needs is on screen without scrolling, on the smallest iPhone.
-        for control in ["parent.talk", "parent.nightLight", "parent.lullaby", "parent.settings", "parent.journal"] {
+        let controls = [
+            "parent.talk", "parent.nightLight", "parent.lullaby", "parent.whiteNoise", "parent.lowLight",
+            "parent.settings", "parent.journal",
+        ]
+        for control in controls {
             XCTAssertTrue(app.buttons[control].isHittable, "\(control) is not reachable")
         }
 
@@ -101,10 +105,22 @@ final class TwoPhoneTests: AppTestCase {
         XCTAssertTrue(waitUntil(60) { nightLight.isSelected }, "The night light command had no effect")
         lullaby.tap()
         XCTAssertTrue(waitUntil(60) { lullaby.isSelected }, "The lullaby command had no effect")
+        // White noise asks for how long, then runs. Low light is a plain switch.
+        let whiteNoise = app.buttons["parent.whiteNoise"], lowLight = app.buttons["parent.lowLight"]
+        whiteNoise.tap()
+        let quarterHour = app.buttons["15 min"]
+        XCTAssertTrue(quarterHour.waitForExistence(timeout: 30))
+        quarterHour.tap()
+        XCTAssertTrue(waitUntil(60) { whiteNoise.isSelected }, "The white noise command had no effect")
+        lowLight.tap()
+        XCTAssertTrue(waitUntil(60) { lowLight.isSelected }, "The low light command had no effect")
         attachScreenshot(named: "parent-commands")
-        nightLight.tap()
-        lullaby.tap()
-        XCTAssertTrue(waitUntil(60) { !nightLight.isSelected && !lullaby.isSelected })
+        for control in [nightLight, lullaby, whiteNoise, lowLight] {
+            control.tap()
+        }
+        XCTAssertTrue(waitUntil(60) {
+            !nightLight.isSelected && !lullaby.isSelected && !whiteNoise.isSelected && !lowLight.isSelected
+        })
 
         // The journal kept by the baby unit reaches this phone.
         app.buttons["parent.journal"].tap()

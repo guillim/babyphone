@@ -7,13 +7,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "On the baby side, the camera films the room for the parent phone. On the parent side, it scans the pairing QR code."
+            "value" : "On the baby side, the camera films the room for the parent device. On the parent side, it scans the pairing QR code."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Côté bébé, la caméra filme la chambre pour le téléphone parent. Côté parent, elle scanne le QR code d'appairage."
+            "value" : "Côté bébé, la caméra filme la chambre pour l'appareil parent. Côté parent, elle scanne le QR code d'appairage."
           }
         }
       }
@@ -24,13 +24,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "The two phones find each other and connect directly over your Wi-Fi network."
+            "value" : "The two devices find each other and connect directly over your Wi-Fi network."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Les deux téléphones se trouvent et se connectent directement sur votre réseau Wi-Fi."
+            "value" : "Les deux appareils se trouvent et se connectent directement sur votre réseau Wi-Fi."
           }
         }
       }

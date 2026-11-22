@@ -118,6 +118,14 @@ struct ToggleTile: View {
     }
 }
 
+extension View {
+    /// Keeps content at a comfortable width and centres it, so a screen built for
+    /// an iPhone does not stretch across an iPad.
+    func readableWidth(_ maxWidth: CGFloat = 560) -> some View {
+        frame(maxWidth: maxWidth).frame(maxWidth: .infinity)
+    }
+}
+
 /// A label on the left, a value on the right.
 struct InfoRow<Value: View>: View {
     let title: LocalizedStringKey

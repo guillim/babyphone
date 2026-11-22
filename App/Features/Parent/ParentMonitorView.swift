@@ -1,11 +1,13 @@
 import BabyphoneCore
 import SwiftUI
+@preconcurrency import WebRTC
 
 /// The parent unit's main screen: the picture, the sound level and the controls.
 struct ParentMonitorView: View {
     @StateObject private var model: ParentMonitorModel
     @State private var isShowingJournal = false
     @State private var isShowingSettings = false
+    @State private var isChoosingWhiteNoise = false
 
     init(model: @autoclosure @escaping () -> ParentMonitorModel) {
         _model = StateObject(wrappedValue: model())
@@ -57,6 +59,13 @@ struct ParentMonitorView: View {
         .sheet(isPresented: $isShowingSettings) {
             SettingsView(role: .parent, parentModel: model)
         }
+        .confirmationDialog("parent.whiteNoise.title", isPresented: $isChoosingWhiteNoise, titleVisibility: .visible) {
+            ForEach([15, 30], id: \.self) { minutes in
+                Button("parent.whiteNoise.minutes \(String(minutes))") { model.setWhiteNoise(minutes: minutes) }
+            }
+            Button("parent.whiteNoise.hour") { model.setWhiteNoise(minutes: 60) }
+            Button("common.cancel", role: .cancel) {}
+        }
         .alert("parent.microphoneDenied.title", isPresented: microphoneDeniedBinding) {
             Button("common.ok", role: .cancel) {}
         } message: {
@@ -83,6 +92,7 @@ struct ParentMonitorView: View {
             ScrollView {
                 liveContent(pictureHeight: max(170, proxy.size.height * 0.42))
                     .frame(minHeight: proxy.size.height)
+                    .readableWidth(720)
             }
         }
     }
@@ -102,7 +112,7 @@ struct ParentMonitorView: View {
             }
             Spacer(minLength: 0)
             TalkButton(isTalking: model.isTalking, isEnabled: model.isConnected, onChange: model.setTalking)
-            HStack(spacing: 10) {
+            HStack(spacing: 6) {
                 ToggleTile(
                     title: "parent.nightLight", systemImage: "lightbulb.fill",
                     isOn: model.status?.isNightLightOn ?? false, action: model.toggleNightLight
@@ -113,6 +123,23 @@ struct ParentMonitorView: View {
                     isOn: model.status?.isLullabyPlaying ?? false, action: model.toggleLullaby
                 )
                 .accessibilityIdentifier("parent.lullaby")
+                ToggleTile(
+                    title: "parent.whiteNoise", systemImage: "wind",
+                    isOn: model.status?.whiteNoiseEndsAt != nil
+                ) {
+                    // Off: ask for how long. On: one touch stops it.
+                    if model.status?.whiteNoiseEndsAt == nil {
+                        isChoosingWhiteNoise = true
+                    } else {
+                        model.setWhiteNoise(minutes: nil)
+                    }
+                }
+                .accessibilityIdentifier("parent.whiteNoise")
+                ToggleTile(
+                    title: "parent.lowLight", systemImage: "moon.fill",
+                    isOn: model.status?.isLowLightOn ?? false, action: model.toggleLowLight
+                )
+                .accessibilityIdentifier("parent.lowLight")
                 ToggleTile(
                     title: "parent.audioOnly", systemImage: "waveform",
                     isOn: !(model.status?.isVideoEnabled ?? true), action: model.toggleVideo
@@ -129,7 +156,7 @@ struct ParentMonitorView: View {
         ZStack {
             Color.black
             if model.isConnected, model.status?.isVideoEnabled ?? true {
-                VideoView(track: model.videoTrack)
+                ZoomableVideo(track: model.videoTrack)
             } else if model.isConnected {
                 VStack(spacing: 8) {
                     Image(systemName: "waveform")
@@ -171,6 +198,13 @@ struct ParentMonitorView: View {
     @ViewBuilder private var banners: some View {
         if model.isAlarmSounding {
             AlertBanner(title: "parent.alarm.title", systemImage: "wifi.exclamationmark", actionTitle: "parent.alarm.silence", action: model.silenceAlarm)
+        }
+        if let power = model.powerAlert {
+            AlertBanner(
+                title: power == .unplugged ? "parent.power.unplugged" : "parent.power.low",
+                systemImage: power == .unplugged ? "powerplug" : "battery.25",
+                actionTitle: "common.ok", action: model.dismissPowerAlert
+            )
         }
         if model.noiseAlert != nil {
             AlertBanner(title: "parent.noise.title", systemImage: "waveform.badge.exclamationmark", actionTitle: "parent.noise.view") {
@@ -214,6 +248,7 @@ struct ParentMonitorView: View {
                 .buttonStyle(PrimaryButtonStyle())
         }
         .padding(20)
+        .readableWidth()
     }
 
     private var paused: some View {
@@ -236,6 +271,7 @@ struct ParentMonitorView: View {
             .buttonStyle(PrimaryButtonStyle())
         }
         .padding(20)
+        .readableWidth()
     }
 
     private var connectingText: LocalizedStringKey {
@@ -254,6 +290,56 @@ struct ParentMonitorView: View {
         case .cellular: return String(localized: "network.cellular")
         default: return String(localized: "network.remote")
         }
+    }
+}
+
+/// The picture from the room. Pinch to look closer, drag to move around, double-tap to see it all again.
+private struct ZoomableVideo: View {
+    let track: RTCVideoTrack?
+
+    private static let maxZoom: CGFloat = 4
+    @State private var zoom: CGFloat = 1
+    @State private var pinch: CGFloat = 1
+    @State private var offset = CGSize.zero
+    @State private var drag = CGSize.zero
+
+    var body: some View {
+        GeometryReader { proxy in
+            let scale = min(max(zoom * pinch, 1), Self.maxZoom)
+            VideoView(track: track)
+                .scaleEffect(scale)
+                .offset(clamped(CGSize(width: offset.width + drag.width, height: offset.height + drag.height), scale: scale, in: proxy.size))
+                .gesture(
+                    MagnificationGesture()
+                        .onChanged { pinch = $0 }
+                        .onEnded { _ in
+                            zoom = scale
+                            pinch = 1
+                            offset = clamped(offset, scale: zoom, in: proxy.size)
+                        }
+                )
+                .simultaneousGesture(
+                    DragGesture()
+                        .onChanged { if scale > 1 { drag = $0.translation } }
+                        .onEnded { _ in
+                            offset = clamped(CGSize(width: offset.width + drag.width, height: offset.height + drag.height), scale: scale, in: proxy.size)
+                            drag = .zero
+                        }
+                )
+                .onTapGesture(count: 2) {
+                    withAnimation(.easeOut(duration: 0.2)) {
+                        zoom = 1
+                        offset = .zero
+                    }
+                }
+        }
+        .clipped()
+    }
+
+    /// Keeps the enlarged picture from sliding off its frame.
+    private func clamped(_ offset: CGSize, scale: CGFloat, in size: CGSize) -> CGSize {
+        let limitX = size.width * (scale - 1) / 2, limitY = size.height * (scale - 1) / 2
+        return CGSize(width: min(max(offset.width, -limitX), limitX), height: min(max(offset.height, -limitY), limitY))
     }
 }
 

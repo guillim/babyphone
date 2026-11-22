@@ -2,13 +2,18 @@
 import BabyphoneCore
 
 /// Parent-side audio that does not depend on the connection: keeps the app
-/// running in the background and sounds the alarm when the link is lost.
+/// running in the background, chimes on alerts and sounds the alarm when the link is lost.
+///
+/// These sounds go through the app's own audio session, not through
+/// notifications, so they are heard with the phone on silent or in a Focus mode.
 final class ParentAudio: @unchecked Sendable {
     private let engine = AVAudioEngine()
     private let silencePlayer = AVAudioPlayerNode()
     private let alarmPlayer = AVAudioPlayerNode()
+    private let chimePlayer = AVAudioPlayerNode()
     private let silenceBuffer = AVAudioPCMBuffer.mono(samples: [Float](repeating: 0, count: 44_100), sampleRate: 44_100)
     private let alarmBuffer = AVAudioPCMBuffer.mono(samples: ToneSynthesizer.alarm(sampleRate: 44_100), sampleRate: 44_100)
+    private let chimeBuffer = AVAudioPCMBuffer.mono(samples: ToneSynthesizer.chime(sampleRate: 44_100), sampleRate: 44_100)
     /// Every use of the engine goes through this queue: system notifications arrive
     /// on their own threads, and the engine is not safe to share.
     private let queue = DispatchQueue(label: "nid.parent-audio")
@@ -18,7 +23,7 @@ final class ParentAudio: @unchecked Sendable {
     private var observers: [any NSObjectProtocol] = []
 
     init() {
-        for (player, buffer) in [(silencePlayer, silenceBuffer), (alarmPlayer, alarmBuffer)] {
+        for (player, buffer) in [(silencePlayer, silenceBuffer), (alarmPlayer, alarmBuffer), (chimePlayer, chimeBuffer)] {
             engine.attach(player)
             engine.connect(player, to: engine.mainMixerNode, format: buffer?.format)
         }
@@ -51,6 +56,7 @@ final class ParentAudio: @unchecked Sendable {
             observers = []
             silencePlayer.stop()
             alarmPlayer.stop()
+            chimePlayer.stop()
             engine.stop()
         }
     }
@@ -63,6 +69,16 @@ final class ParentAudio: @unchecked Sendable {
             } else {
                 alarmPlayer.stop()
             }
+        }
+    }
+
+    /// Plays the alert chime once.
+    func playChime() {
+        queue.async { [self] in
+            guard let chimeBuffer, engine.isRunning else { return }
+            chimePlayer.stop()
+            chimePlayer.scheduleBuffer(chimeBuffer, at: nil)
+            chimePlayer.play()
         }
     }
 
