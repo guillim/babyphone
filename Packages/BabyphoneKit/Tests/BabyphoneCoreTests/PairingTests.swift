@@ -2,7 +2,7 @@ import Foundation
 import Testing
 @testable import BabyphoneCore
 
-@Suite struct PairingTests {
+@Suite(.timeLimit(.minutes(1))) struct PairingTests {
     @Test func invitationCodeHasSixDigits() {
         for _ in 0..<200 {
             let invitation = PairingInvitation.random()

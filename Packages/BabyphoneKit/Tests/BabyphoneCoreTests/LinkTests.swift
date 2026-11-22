@@ -2,7 +2,7 @@ import Foundation
 import Testing
 @testable import BabyphoneCore
 
-@Suite struct PeerLinkTests {
+@Suite(.timeLimit(.minutes(1))) struct PeerLinkTests {
     private let network = FakeNetwork()
 
     private func connectedPair() async throws -> (PeerLink, PeerLink, FakeSession, FakeSession) {
@@ -62,7 +62,7 @@ import Testing
 }
 
 /// The two phones' connection logic, run against each other over a simulated network.
-@Suite struct ConnectionTests {
+@Suite(.timeLimit(.minutes(1))) struct ConnectionTests {
     private let media = FakeNetwork()
     private let localNetwork = FakeLocalNetwork()
     private let cloud = MemoryRendezvous()

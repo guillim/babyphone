@@ -30,11 +30,17 @@ public final class WebRTCSession: NSObject, PeerSession, @unchecked Sendable {
 
     private let connection: RTCPeerConnection
     private let eventContinuation: AsyncStream<PeerSessionEvent>.Continuation
+    /// Guards the state below. WebRTC calls back on its own threads while holding its
+    /// own locks, and most of its API waits on those threads. So nothing may call into
+    /// WebRTC while holding this lock: two threads would wait on each other for ever.
+    /// The state is therefore a copy of what the callbacks reported, never a live query.
     private let lock = NSLock()
     private var dataChannel: RTCDataChannel?
     private var talkBackSender: RTCRtpSender?
     private var incomingVideo: RTCVideoTrack?
     private var isTransportConnected = false
+    private var isChannelOpen = false
+    private var isGatheringComplete = false
     private var hasAnnouncedConnection = false
     private var gatheringWaiters: [CheckedContinuation<Void, Never>] = []
 
@@ -132,8 +138,8 @@ public final class WebRTCSession: NSObject, PeerSession, @unchecked Sendable {
 
     @discardableResult
     public func send(_ data: Data) -> Bool {
-        guard let channel = lock.withLock({ dataChannel }), channel.readyState == .open else { return false }
-        return channel.sendData(RTCDataBuffer(data: data, isBinary: true))
+        let channel = lock.withLock { isChannelOpen ? dataChannel : nil }
+        return channel?.sendData(RTCDataBuffer(data: data, isBinary: true)) ?? false
     }
 
     public func close() {
@@ -188,7 +194,7 @@ public final class WebRTCSession: NSObject, PeerSession, @unchecked Sendable {
         defer { timeout.cancel() }
         await withCheckedContinuation { continuation in
             let isComplete = lock.withLock { () -> Bool in
-                if connection.iceGatheringState == .complete { return true }
+                if isGatheringComplete { return true }
                 gatheringWaiters.append(continuation)
                 return false
             }
@@ -198,8 +204,10 @@ public final class WebRTCSession: NSObject, PeerSession, @unchecked Sendable {
         return description.sdp
     }
 
+    /// Lets every caller waiting for the local addresses go on. Later callers do not wait at all.
     private func resumeGatheringWaiters() {
         let waiters = lock.withLock { () -> [CheckedContinuation<Void, Never>] in
+            isGatheringComplete = true
             defer { gatheringWaiters = [] }
             return gatheringWaiters
         }
@@ -214,7 +222,8 @@ public final class WebRTCSession: NSObject, PeerSession, @unchecked Sendable {
             case .audio:
                 var error: NSError?
                 transceiver.setDirection(.sendRecv, error: &error)
-                lock.withLock { talkBackSender = transceiver.sender }
+                let sender = transceiver.sender
+                lock.withLock { talkBackSender = sender }
             case .video:
                 let track = transceiver.receiver.track as? RTCVideoTrack
                 lock.withLock { incomingVideo = track }
@@ -227,13 +236,24 @@ public final class WebRTCSession: NSObject, PeerSession, @unchecked Sendable {
     private func adopt(_ channel: RTCDataChannel) {
         lock.withLock { dataChannel = channel }
         channel.delegate = self
-        announceConnectionIfReady()
+        channelStateDidChange(channel)
+    }
+
+    private func channelStateDidChange(_ channel: RTCDataChannel) {
+        let state = channel.readyState
+        lock.withLock { isChannelOpen = state == .open }
+        if state == .closed {
+            // The other end hung up. Saying so now spares the wait for the silence timeout.
+            eventContinuation.yield(.failed)
+        } else {
+            announceConnectionIfReady()
+        }
     }
 
     /// The session counts as connected once media can flow and the data channel is open.
     private func announceConnectionIfReady() {
         let shouldAnnounce = lock.withLock { () -> Bool in
-            guard !hasAnnouncedConnection, isTransportConnected, dataChannel?.readyState == .open else { return false }
+            guard !hasAnnouncedConnection, isTransportConnected, isChannelOpen else { return false }
             hasAnnouncedConnection = true
             return true
         }
@@ -277,12 +297,7 @@ extension WebRTCSession: RTCPeerConnectionDelegate {
 
 extension WebRTCSession: RTCDataChannelDelegate {
     public func dataChannelDidChangeState(_ dataChannel: RTCDataChannel) {
-        if dataChannel.readyState == .closed {
-            // The other end hung up. Saying so now spares the wait for the silence timeout.
-            eventContinuation.yield(.failed)
-        } else {
-            announceConnectionIfReady()
-        }
+        channelStateDidChange(dataChannel)
     }
 
     public func dataChannel(_ dataChannel: RTCDataChannel, didReceiveMessageWith buffer: RTCDataBuffer) {

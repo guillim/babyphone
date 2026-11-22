@@ -6,7 +6,10 @@ import Testing
 @preconcurrency import WebRTC
 
 /// These tests run the real WebRTC stack and real TCP and TLS connections, inside one process.
-@Suite(.serialized) struct TransportTests {
+///
+/// Each has a time limit: a deadlock between threads shows up as a test that never ends,
+/// and it must fail rather than hold the whole run.
+@Suite(.serialized, .timeLimit(.minutes(2))) struct TransportTests {
     // MARK: WebRTC
 
     @Test func descriptionsListHostAddressesOnly() async throws {
@@ -193,7 +196,7 @@ import Testing
 
 /// Bonjour needs a real local network and the permission to use it, which a
 /// build server may not have. These run on a developer's Mac.
-@Suite(.serialized, .enabled(if: ProcessInfo.processInfo.environment["CI"] == nil)) struct BonjourTests {
+@Suite(.serialized, .timeLimit(.minutes(2)), .enabled(if: ProcessInfo.processInfo.environment["CI"] == nil)) struct BonjourTests {
     @Test func parentFindsItsOwnBabyUnit() async throws {
         let key = PairingKey.random()
         let ours = BonjourSignalingListener(key: key)
