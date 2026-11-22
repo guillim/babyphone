@@ -25,7 +25,12 @@ struct BabyMonitorView: View {
         }
         .contentShape(Rectangle())
         .simultaneousGesture(TapGesture().onEnded { model.registerTouch() })
-        .task { await model.loadSettings() }
+        .task {
+            await model.loadSettings()
+            #if DEBUG
+            await TestHarness.runBabySession(with: model)
+            #endif
+        }
         .sheet(isPresented: $isShowingSettings) {
             SettingsView(role: .baby, babyModel: model)
         }

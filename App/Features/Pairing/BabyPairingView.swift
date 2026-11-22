@@ -77,6 +77,12 @@ struct BabyPairingView: View {
             }
         }
         .onDisappear { model.stop() }
+        #if DEBUG
+        .onChange(of: model.invitation) { invitation in
+            // In a two-device test session, the test types this code on the parent unit.
+            if let invitation { TestHarness.report("code", invitation.code) }
+        }
+        #endif
     }
 }
 

@@ -67,7 +67,7 @@ final class SmokeTests: AppTestCase {
         acceptSystemAlerts()
 
         // The live screen shows while the app searches. It only lasts a few seconds here,
-        // so it is captured when seen. The two-phone test checks it for real.
+        // so it is captured when seen. The two-device test checks it for real.
         let talk = app.buttons["parent.talk"]
         if talk.waitForExistence(timeout: 2) {
             attachScreenshot(named: "6-parent-searching")

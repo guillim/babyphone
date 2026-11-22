@@ -37,7 +37,7 @@ At home the devices find each other over Wi-Fi with Bonjour. This needs neither 
 | `App/Features` | One folder per screen, each with a SwiftUI view and its model. |
 | `App/DesignSystem` | Colours, type and shared components. |
 | `App/Resources` | Icon, colours, French and English strings. |
-| `UITests` | Launches the app in a simulator on the smallest supported iPhone and walks every screen. Also runs both sides in two simulators through a whole session. |
+| `UITests` | Launches the app in a simulator, on the smallest supported iPhone and on an iPad, and walks every screen. Also drives a parent unit through a whole session with a baby unit running in a second simulator. |
 | `Config` | Bundle identifier, versions, Info.plist, entitlements. |
 
 The connection logic lives in the core package behind three small protocols (`PeerSession`, `LocalSignalingListening` and `LocalSignalingConnecting`, `RendezvousProvider`). The tests run both devices' logic against each other over a simulated network.
