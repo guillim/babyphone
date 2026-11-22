@@ -84,9 +84,12 @@ public final class WebRTCSession: NSObject, PeerSession, @unchecked Sendable {
         await withCheckedContinuation { continuation in
             connection.statistics { report in
                 let statistics = report.statistics
-                let pair = statistics.values.first {
+                // The transport names the pair in use. Older stacks only flag it on the pair itself.
+                let selectedID = statistics.values
+                    .first { $0.type == "transport" && $0.values["selectedCandidatePairId"] != nil }?
+                    .values["selectedCandidatePairId"] as? String
+                let pair = selectedID.flatMap { statistics[$0] } ?? statistics.values.first {
                     $0.type == "candidate-pair" && ($0.values["nominated"] as? NSNumber)?.boolValue == true
-                        && ($0.values["state"] as? String) == "succeeded"
                 }
                 func address(_ key: String) -> String? {
                     guard let id = pair?.values[key] as? String, let candidate = statistics[id] else { return nil }

@@ -12,7 +12,18 @@
 		BB000000000000000000001B /* BabyphoneTransport in Frameworks */ = {isa = PBXBuildFile; productRef = BB000000000000000000001A /* BabyphoneTransport */; };
 /* End PBXBuildFile section */
 
+/* Begin PBXContainerItemProxy section */
+		BB000000000000000000002A /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = BB0000000000000000000001 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = BB0000000000000000000007;
+			remoteInfo = Babyphone;
+		};
+/* End PBXContainerItemProxy section */
+
 /* Begin PBXFileReference section */
+		BB0000000000000000000021 /* BabyphoneUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = BabyphoneUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		BB0000000000000000000006 /* Babyphone.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Babyphone.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		BB0000000000000000000011 /* App.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = App.xcconfig; sourceTree = "<group>"; };
 		BB0000000000000000000012 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
@@ -23,6 +34,11 @@
 		BB0000000000000000000005 /* App */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = App;
+			sourceTree = "<group>";
+		};
+		BB0000000000000000000020 /* UITests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = UITests;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -38,6 +54,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		BB0000000000000000000024 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -45,6 +68,7 @@
 			isa = PBXGroup;
 			children = (
 				BB0000000000000000000005 /* App */,
+				BB0000000000000000000020 /* UITests */,
 				BB0000000000000000000004 /* Config */,
 				BB0000000000000000000003 /* Products */,
 			);
@@ -54,6 +78,7 @@
 			isa = PBXGroup;
 			children = (
 				BB0000000000000000000006 /* Babyphone.app */,
+				BB0000000000000000000021 /* BabyphoneUITests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -96,6 +121,29 @@
 			productReference = BB0000000000000000000006 /* Babyphone.app */;
 			productType = "com.apple.product-type.application";
 		};
+		BB0000000000000000000022 /* BabyphoneUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = BB0000000000000000000026 /* Build configuration list for PBXNativeTarget "BabyphoneUITests" */;
+			buildPhases = (
+				BB0000000000000000000023 /* Sources */,
+				BB0000000000000000000024 /* Frameworks */,
+				BB0000000000000000000025 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				BB0000000000000000000029 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				BB0000000000000000000020 /* UITests */,
+			);
+			name = BabyphoneUITests;
+			packageProductDependencies = (
+			);
+			productName = BabyphoneUITests;
+			productReference = BB0000000000000000000021 /* BabyphoneUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -108,6 +156,10 @@
 				TargetAttributes = {
 					BB0000000000000000000007 = {
 						CreatedOnToolsVersion = 16.0;
+					};
+					BB0000000000000000000022 = {
+						CreatedOnToolsVersion = 16.0;
+						TestTargetID = BB0000000000000000000007;
 					};
 				};
 			};
@@ -131,12 +183,20 @@
 			projectRoot = "";
 			targets = (
 				BB0000000000000000000007 /* Babyphone */,
+				BB0000000000000000000022 /* BabyphoneUITests */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
 		BB000000000000000000000A /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		BB0000000000000000000025 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -153,7 +213,22 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		BB0000000000000000000023 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		BB0000000000000000000029 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = BB0000000000000000000007 /* Babyphone */;
+			targetProxy = BB000000000000000000002A /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		BB000000000000000000000D /* Debug */ = {
@@ -232,6 +307,28 @@
 			};
 			name = Release;
 		};
+		BB0000000000000000000027 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				GENERATE_INFOPLIST_FILE = YES;
+				PRODUCT_BUNDLE_IDENTIFIER = "$(inherited).uitests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				TEST_TARGET_NAME = Babyphone;
+			};
+			name = Debug;
+		};
+		BB0000000000000000000028 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				GENERATE_INFOPLIST_FILE = YES;
+				PRODUCT_BUNDLE_IDENTIFIER = "$(inherited).uitests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				TEST_TARGET_NAME = Babyphone;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -249,6 +346,15 @@
 			buildConfigurations = (
 				BB000000000000000000000F /* Debug */,
 				BB0000000000000000000010 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		BB0000000000000000000026 /* Build configuration list for PBXNativeTarget "BabyphoneUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				BB0000000000000000000027 /* Debug */,
+				BB0000000000000000000028 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

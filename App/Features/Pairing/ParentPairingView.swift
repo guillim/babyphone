@@ -46,6 +46,7 @@ struct ParentPairingView: View {
                     .background(Theme.card, in: RoundedRectangle(cornerRadius: Theme.cornerRadius))
                     .overlay(RoundedRectangle(cornerRadius: Theme.cornerRadius).stroke(Theme.border))
                     .focused($isCodeFocused)
+                    .accessibilityIdentifier("pairing.codeField")
                     .onChange(of: model.code) { newValue in
                         let digits = String(newValue.filter(\.isNumber).prefix(6))
                         if digits != newValue { model.code = digits }
@@ -57,6 +58,7 @@ struct ParentPairingView: View {
                 }
                 .buttonStyle(PrimaryButtonStyle())
                 .disabled(!model.canSubmitCode)
+                .accessibilityIdentifier("pairing.submit")
 
                 if let failure = model.failure {
                     Text(message(for: failure))

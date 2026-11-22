@@ -54,3 +54,38 @@ jobs:
             | xcbeautify --quiet --renderer github-actions
       - name: Show resolved package versions
         run: cat Babyphone.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved
+
+  screens:
+    name: Screens in the simulator
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v5
+      - name: Pick the smallest supported iPhone
+        run: |
+          # Every screen must fit an iPhone SE. Fall back to any iPhone if the image has none.
+          device=$(xcrun simctl list devices available | grep -E 'iPhone SE \(3rd generation\)' | head -1 | grep -oE '[0-9A-F-]{36}' || true)
+          if [ -z "$device" ]; then
+            device=$(xcrun simctl list devices available | grep -E 'iPhone' | head -1 | grep -oE '[0-9A-F-]{36}')
+          fi
+          xcrun simctl list devices available | grep "$device"
+          echo "DEVICE=$device" >> "$GITHUB_ENV"
+      - name: Walk the screens
+        run: |
+          set -o pipefail
+          xcodebuild test \
+            -project Babyphone.xcodeproj \
+            -scheme Babyphone \
+            -destination "id=$DEVICE" \
+            -only-testing:BabyphoneUITests \
+            -resultBundlePath Screens.xcresult \
+            -skipPackagePluginValidation \
+            | xcbeautify --quiet --renderer github-actions
+      - name: Export the screenshots
+        if: always()
+        run: xcrun xcresulttool export attachments --path Screens.xcresult --output-path Screenshots
+      - name: Keep the screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: screenshots
+          path: Screenshots

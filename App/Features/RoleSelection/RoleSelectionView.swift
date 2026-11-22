@@ -20,7 +20,9 @@ struct RoleSelectionView: View {
                 .padding(.top, 32)
 
                 roleButton(.baby, title: "role.baby.title", detail: "role.baby.detail", systemImage: "moon.stars.fill")
+                    .accessibilityIdentifier("role.baby")
                 roleButton(.parent, title: "role.parent.title", detail: "role.parent.detail", systemImage: "figure.and.child.holdinghands")
+                    .accessibilityIdentifier("role.parent")
 
                 Text("role.footer")
                     .font(.footnote)

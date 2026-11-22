@@ -48,6 +48,16 @@
                ReferencedContainer = "container:Packages/BabyphoneKit">
             </BuildableReference>
          </TestableReference>
+         <TestableReference
+            skipped = "NO">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "BB0000000000000000000022"
+               BuildableName = "BabyphoneUITests.xctest"
+               BlueprintName = "BabyphoneUITests"
+               ReferencedContainer = "container:Babyphone.xcodeproj">
+            </BuildableReference>
+         </TestableReference>
       </Testables>
    </TestAction>
    <LaunchAction

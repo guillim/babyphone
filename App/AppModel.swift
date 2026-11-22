@@ -31,6 +31,9 @@ final class AppModel: ObservableObject {
             stage = .broken
             return
         }
+        #if DEBUG
+        await applyUITestState()
+        #endif
         let role = (try? await settings?.string(for: .role)).flatMap(DeviceRole.init(rawValue:))
         stage = stage(for: role)
     }
@@ -59,6 +62,21 @@ final class AppModel: ObservableObject {
         try? await settings?.set(nil, for: .role)
         stage = .choosingRole
     }
+
+    #if DEBUG
+    /// UI tests start the app in a known state, named by the `NID_UI_TEST_STATE`
+    /// environment variable: "fresh", or a role, optionally followed by "-paired".
+    private func applyUITestState() async {
+        guard let state = ProcessInfo.processInfo.environment["NID_UI_TEST_STATE"] else { return }
+        await forgetPairing()
+        let parts = state.split(separator: "-")
+        let role = parts.first.flatMap { DeviceRole(rawValue: String($0)) }
+        try? await settings?.set(role?.rawValue, for: .role)
+        if parts.contains("paired") {
+            PairingKeychain.save(.random())
+        }
+    }
+    #endif
 
     private func stage(for role: DeviceRole?) -> Stage {
         guard let role else { return .choosingRole }

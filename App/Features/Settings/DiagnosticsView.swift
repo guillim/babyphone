@@ -18,6 +18,7 @@ struct DiagnosticsView: View {
         List {
             Section {
                 InfoRow(title: "diagnostics.icloud") { Text(cloudText) }
+                    .accessibilityIdentifier("diagnostics.icloud")
                 InfoRow(title: "diagnostics.ipv6") { Text(hasGlobalIPv6 ? "common.yes" : "common.no") }
             } header: {
                 Text("diagnostics.remote")

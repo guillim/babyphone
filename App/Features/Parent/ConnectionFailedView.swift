@@ -43,8 +43,10 @@ struct ConnectionFailedView: View {
 
                 Button("failure.retry", action: retry)
                     .buttonStyle(PrimaryButtonStyle())
+                    .accessibilityIdentifier("failure.retry")
                 Button("failure.journal", action: showJournal)
                     .buttonStyle(SecondaryButtonStyle())
+                    .accessibilityIdentifier("failure.journal")
             }
             .padding(20)
         }

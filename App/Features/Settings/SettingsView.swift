@@ -57,6 +57,7 @@ struct SettingsView: View {
                         NavigationLink("diagnostics.title") {
                             DiagnosticsView(database: database, currentPath: parentModel?.currentPath)
                         }
+                        .accessibilityIdentifier("settings.diagnostics")
                     }
                 }
 

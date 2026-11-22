@@ -48,16 +48,19 @@ struct BabyMonitorView: View {
                     .font(.footnote)
                     .foregroundStyle(Theme.alert)
                     .multilineTextAlignment(.center)
+                    .accessibilityIdentifier("baby.startFailure")
             }
             Spacer()
             Button("baby.start") {
                 Task { await model.start() }
             }
             .buttonStyle(PrimaryButtonStyle())
+            .accessibilityIdentifier("baby.start")
             Button("settings.title") {
                 isShowingSettings = true
             }
             .buttonStyle(SecondaryButtonStyle())
+            .accessibilityIdentifier("baby.settings")
         }
         .padding(20)
     }
@@ -106,6 +109,7 @@ struct BabyMonitorView: View {
                     Task { await model.stop() }
                 }
                 .buttonStyle(SecondaryButtonStyle())
+                .accessibilityIdentifier("baby.stop")
             }
             .padding(20)
         }

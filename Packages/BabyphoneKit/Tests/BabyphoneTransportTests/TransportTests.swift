@@ -39,7 +39,14 @@ import Testing
         var atBaby = first.payloads.makeAsyncIterator()
         #expect(await atParent.next() == Data("from the baby unit".utf8))
         #expect(await atBaby.next() == Data("from the parent unit".utf8))
-        #expect(await offerer.selectedPath() != nil)
+
+        // Statistics trail the connection by a moment.
+        var path: WebRTCSession.Path?
+        for _ in 0..<50 where path == nil {
+            path = await offerer.selectedPath()
+            if path == nil { try await Task.sleep(for: .milliseconds(100)) }
+        }
+        #expect(path != nil)
 
         // Closing one end is noticed by the other at once, without waiting for the silence timeout.
         await first.close()

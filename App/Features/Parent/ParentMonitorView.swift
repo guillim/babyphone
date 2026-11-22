@@ -38,12 +38,14 @@ struct ParentMonitorView: View {
                         Image(systemName: "gearshape")
                     }
                     .accessibilityLabel(Text("settings.title"))
+                    .accessibilityIdentifier("parent.settings")
                 }
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button { isShowingJournal = true } label: {
                         Image(systemName: "list.bullet.rectangle")
                     }
                     .accessibilityLabel(Text("journal.title"))
+                    .accessibilityIdentifier("parent.journal")
                 }
             }
             .navigationBarTitleDisplayMode(.inline)
@@ -279,6 +281,7 @@ private struct TalkButton: View {
         .accessibilityElement()
         .accessibilityLabel(Text("parent.talk"))
         .accessibilityAddTraits(.isButton)
+        .accessibilityIdentifier("parent.talk")
     }
 }
 

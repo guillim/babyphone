@@ -15,6 +15,7 @@ struct JournalView: View {
                 }
                 .pickerStyle(.segmented)
                 .disabled(!model.isConnected)
+                .accessibilityIdentifier("journal.sensitivity")
             } header: {
                 Text("journal.sensitivity")
             } footer: {

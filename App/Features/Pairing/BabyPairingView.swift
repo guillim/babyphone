@@ -40,6 +40,7 @@ struct BabyPairingView: View {
                                 .kerning(6)
                                 .foregroundStyle(Theme.accent)
                                 .accessibilityLabel(Text(invitation.code.map(String.init).joined(separator: " ")))
+                                .accessibilityIdentifier("pairing.code")
                         }
                         .frame(maxWidth: .infinity)
                     }
@@ -64,6 +65,7 @@ struct BabyPairingView: View {
                 }
                 .font(.footnote.weight(.semibold))
                 .frame(minHeight: Theme.minimumTouchTarget)
+                .accessibilityIdentifier("pairing.changeRole")
             }
             .padding(20)
         }
