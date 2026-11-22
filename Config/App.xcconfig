@@ -1,0 +1,17 @@
+// Identity and versions of the app. Everything a rename or a re-sign needs is in this file.
+
+// Name under the icon. "Nid" is a working name.
+APP_DISPLAY_NAME = Nid
+// Also names the CloudKit container: iCloud.<bundle identifier>.
+PRODUCT_BUNDLE_IDENTIFIER = com.guillim.babyphone
+
+MARKETING_VERSION = 0.1.0
+CURRENT_PROJECT_VERSION = 1
+
+// iOS 16 keeps older iPhones (iPhone 8 and later) usable as the baby unit.
+IPHONEOS_DEPLOYMENT_TARGET = 16.0
+TARGETED_DEVICE_FAMILY = 1
+SWIFT_VERSION = 6.0
+
+// Your Apple Developer team goes in Config/Local.xcconfig, which is not committed.
+#include? "Local.xcconfig"

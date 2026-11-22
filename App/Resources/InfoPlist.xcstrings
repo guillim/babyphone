@@ -1,0 +1,57 @@
+{
+  "sourceLanguage" : "fr",
+  "strings" : {
+    "NSCameraUsageDescription" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "On the baby side, the camera films the room for the parent phone. On the parent side, it scans the pairing QR code."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Côté bébé, la caméra filme la chambre pour le téléphone parent. Côté parent, elle scanne le QR code d'appairage."
+          }
+        }
+      }
+    },
+    "NSLocalNetworkUsageDescription" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The two phones find each other and connect directly over your Wi-Fi network."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Les deux téléphones se trouvent et se connectent directement sur votre réseau Wi-Fi."
+          }
+        }
+      }
+    },
+    "NSMicrophoneUsageDescription" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "On the baby side, the microphone listens to the room. On the parent side, it lets you talk to your baby."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Côté bébé, le micro écoute la chambre. Côté parent, il sert à parler à votre bébé."
+          }
+        }
+      }
+    }
+  },
+  "version" : "1.0"
+}

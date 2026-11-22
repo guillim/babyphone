@@ -1,0 +1,15 @@
+# Xcode
+DerivedData/
+xcuserdata/
+*.xcuserstate
+
+# Swift Package Manager
+.build/
+.swiftpm/
+# The package is consumed by the Xcode project, whose own Package.resolved pins the versions.
+Packages/*/Package.resolved
+
+# Signing identity of each developer
+Config/Local.xcconfig
+
+.DS_Store
