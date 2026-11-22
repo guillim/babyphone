@@ -3,6 +3,7 @@ import BabyphoneCore
 import Foundation
 @preconcurrency import Network
 import Testing
+import TestSupport
 @preconcurrency import WebRTC
 
 /// These tests run the real WebRTC stack and real TCP and TLS connections, inside one process.
@@ -15,7 +16,7 @@ import Testing
     @Test func descriptionsListHostAddressesOnly() async throws {
         let session = try WebRTCSession(factory: TestMedia.factory)
         defer { session.close() }
-        let offer = try await session.makeOffer()
+        let offer = try await step { try await session.makeOffer() }
 
         let candidates = offer.split(whereSeparator: \.isNewline).filter { $0.hasPrefix("a=candidate:") }
         // The offer must be complete when it is returned: there is no second message to add addresses later.
@@ -31,17 +32,16 @@ import Testing
         let first = PeerLink(session: offerer, route: .local, timings: .quick)
         let second = PeerLink(session: answerer, route: .local, timings: .quick)
 
-        let answer = try await answerer.makeAnswer(to: try await offerer.makeOffer())
-        try await offerer.accept(answer: answer)
+        let offer = try await step { try await offerer.makeOffer() }
+        let answer = try await step { try await answerer.makeAnswer(to: offer) }
+        try await step { try await offerer.accept(answer: answer) }
         #expect(await first.waitUntilConnected(timeout: .seconds(20)))
         #expect(await second.waitUntilConnected(timeout: .seconds(20)))
 
         await first.send(Data("from the baby unit".utf8))
         await second.send(Data("from the parent unit".utf8))
-        var atParent = second.payloads.makeAsyncIterator()
-        var atBaby = first.payloads.makeAsyncIterator()
-        #expect(await atParent.next() == Data("from the baby unit".utf8))
-        #expect(await atBaby.next() == Data("from the parent unit".utf8))
+        #expect(await next(of: second.payloads) == Data("from the baby unit".utf8))
+        #expect(await next(of: first.payloads) == Data("from the parent unit".utf8))
 
         // Statistics trail the connection by a moment.
         var path: WebRTCSession.Path?
@@ -52,8 +52,8 @@ import Testing
         #expect(path != nil)
 
         // Closing one end is noticed by the other at once, without waiting for the silence timeout.
-        await first.close()
-        #expect(await second.waitUntilEnded() == .failed)
+        #expect(await finishes { await first.close() })
+        #expect(await value { await second.waitUntilEnded() } == .failed)
     }
 
     @Test func anOfferMadeLongBeforeItsAnswerStillConnects() async throws {
@@ -63,14 +63,15 @@ import Testing
         let first = PeerLink(session: offerer, route: .remote, timings: .quick)
         let second = PeerLink(session: answerer, route: .remote, timings: .quick)
 
-        let offer = try await offerer.makeOffer()
+        let offer = try await step { try await offerer.makeOffer() }
         try await Task.sleep(for: .seconds(3))
-        try await offerer.accept(answer: try await answerer.makeAnswer(to: offer))
+        let answer = try await step { try await answerer.makeAnswer(to: offer) }
+        try await step { try await offerer.accept(answer: answer) }
 
         #expect(await first.waitUntilConnected(timeout: .seconds(20)))
         #expect(await second.waitUntilConnected(timeout: .seconds(20)))
-        await first.close()
-        await second.close()
+        #expect(await finishes { await first.close() })
+        #expect(await finishes { await second.close() })
     }
 
     // MARK: Secured channel
@@ -82,8 +83,7 @@ import Testing
         defer { listener.stop() }
 
         let client = try await LoopbackListener.connect(to: port, using: LocalTransport.monitorParameters(key: key))
-        var accepted = listener.channels.makeAsyncIterator()
-        let server = try #require(await accepted.next())
+        let server = try #require(await next(of: listener.channels))
 
         let frames = [Data("first".utf8), Data(), Data(repeating: 7, count: 100_000)]
         for frame in frames {
@@ -119,8 +119,7 @@ import Testing
         defer { listener.stop() }
 
         @Sendable func servePairing() async -> PairingKey? {
-            var accepted = listener.channels.makeAsyncIterator()
-            guard let channel = await accepted.next() else { return nil }
+            guard let channel = await next(of: listener.channels) else { return nil }
             return await host.serve(channel)
         }
         async let babyKey = servePairing()
@@ -137,8 +136,8 @@ import Testing
         let network = LoopbackSignaling(babyKey: key, parentKey: key)
         let host = BabyHost(makeSession: TestMedia.sessionFactory, listener: network, rendezvous: nil, timings: .quick)
         let connector = ParentConnector(makeSession: TestMedia.sessionFactory, local: network, rendezvous: nil, timings: .quick)
-        await host.start()
-        await connector.start()
+        #expect(await finishes { await host.start() })
+        #expect(await finishes { await connector.start() })
 
         async let babyConnected = waitFor(host.states) { $0 == .connected(.local) }
         #expect(await waitFor(connector.states) { $0 == .connected(.local) })
@@ -147,15 +146,13 @@ import Testing
         // The same messages the app exchanges, through the real data channel.
         await connector.send(try WireCoding.encode(ParentMessage.setLullaby(true)))
         await host.send(try WireCoding.encode(BabyMessage.status(MonitorStatus(roomName: "Chambre"))))
-        var atBaby = host.payloads.makeAsyncIterator()
-        var atParent = connector.payloads.makeAsyncIterator()
-        let command = try #require(await atBaby.next())
-        let status = try #require(await atParent.next())
+        let command = try #require(await next(of: host.payloads))
+        let status = try #require(await next(of: connector.payloads))
         #expect(try WireCoding.decode(ParentMessage.self, from: command) == .setLullaby(true))
         #expect(try WireCoding.decode(BabyMessage.self, from: status) == .status(MonitorStatus(roomName: "Chambre")))
 
-        await connector.stop()
-        await host.stop()
+        #expect(await finishes { await connector.stop() })
+        #expect(await finishes { await host.stop() })
     }
 
     @Test func parentAndBabyConnectThroughTheRendezvous() async throws {
@@ -169,15 +166,15 @@ import Testing
             makeSession: TestMedia.sessionFactory, local: NoLocalNetwork(),
             rendezvous: RendezvousClient(provider: cloud, key: key, role: .parent), timings: .quick
         )
-        await host.start()
-        await connector.start()
+        #expect(await finishes { await host.start() })
+        #expect(await finishes { await connector.start() })
 
         async let babyConnected = waitFor(host.states) { $0 == .connected(.remote) }
         #expect(await waitFor(connector.states) { $0 == .connected(.remote) })
         #expect(await babyConnected)
 
-        await connector.stop()
-        await host.stop()
+        #expect(await finishes { await connector.stop() })
+        #expect(await finishes { await host.stop() })
     }
 
     @Test func twoParentsFollowTheSameBabyUnit() async throws {
@@ -189,8 +186,12 @@ import Testing
             hosts.append(BabyHost(makeSession: TestMedia.sessionFactory, listener: network, rendezvous: nil, timings: .quick))
             connectors.append(ParentConnector(makeSession: TestMedia.sessionFactory, local: network, rendezvous: nil, timings: .quick))
         }
-        for host in hosts { await host.start() }
-        for connector in connectors { await connector.start() }
+        for host in hosts {
+            #expect(await finishes { await host.start() })
+        }
+        for connector in connectors {
+            #expect(await finishes { await connector.start() })
+        }
 
         for (host, connector) in zip(hosts, connectors) {
             async let babyConnected = waitFor(host.states) { $0 == .connected(.local) }
@@ -202,25 +203,28 @@ import Testing
             await host.send(Data("for parent \(index)".utf8))
         }
         for (index, connector) in connectors.enumerated() {
-            var received = connector.payloads.makeAsyncIterator()
-            #expect(await received.next() == Data("for parent \(index)".utf8))
+            #expect(await next(of: connector.payloads) == Data("for parent \(index)".utf8))
         }
 
-        for connector in connectors { await connector.stop() }
-        for host in hosts { await host.stop() }
+        for connector in connectors {
+            #expect(await finishes { await connector.stop() })
+        }
+        for host in hosts {
+            #expect(await finishes { await host.stop() })
+        }
     }
 
     @Test func aParentWithAnotherKeyNeverConnects() async throws {
         let network = LoopbackSignaling(babyKey: .random(), parentKey: .random())
         let host = BabyHost(makeSession: TestMedia.sessionFactory, listener: network, rendezvous: nil, timings: .quick)
         let connector = ParentConnector(makeSession: TestMedia.sessionFactory, local: network, rendezvous: nil, timings: .quick)
-        await host.start()
-        await connector.start()
+        #expect(await finishes { await host.start() })
+        #expect(await finishes { await connector.start() })
 
         #expect(await waitFor(connector.states) { if case .unreachable = $0 { true } else { false } })
 
-        await connector.stop()
-        await host.stop()
+        #expect(await finishes { await connector.stop() })
+        #expect(await finishes { await host.stop() })
     }
 }
 
@@ -235,14 +239,13 @@ import Testing
         _ = try await neighbour.start()
 
         let channel = try await BonjourSignalingConnector(key: key).connect(timeout: .seconds(8))
-        var accepted = channels.makeAsyncIterator()
-        let server = try #require(await accepted.next())
+        let server = try #require(await next(of: channels))
         try await channel.send(Data("hello".utf8))
         #expect(try await server.receive(timeout: .seconds(5)) == Data("hello".utf8))
 
         channel.close()
-        await ours.stop()
-        await neighbour.stop()
+        #expect(await finishes { await ours.stop() })
+        #expect(await finishes { await neighbour.stop() })
     }
 
     @Test func pairingFindsTheBabyUnitNearby() async throws {
@@ -254,7 +257,6 @@ import Testing
 
         let code = await host.invitation.code
         let parentKey = try await PairingClient.pair(using: .code(code))
-        var keys = paired.stream.makeAsyncIterator()
-        #expect(await keys.next() == parentKey)
+        #expect(await next(of: paired.stream) == parentKey)
     }
 }

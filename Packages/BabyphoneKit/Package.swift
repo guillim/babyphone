@@ -32,13 +32,15 @@ products.append(.library(name: "BabyphoneTransport", targets: ["BabyphoneTranspo
 dependencies.append(.package(url: "https://github.com/stasel/WebRTC.git", exact: "158.0.0"))
 targets += [
     .target(name: "BabyphoneTransport", dependencies: ["BabyphoneCore", .product(name: "WebRTC", package: "WebRTC")]),
-    .testTarget(name: "BabyphoneTransportTests", dependencies: ["BabyphoneTransport"]),
+    .testTarget(name: "BabyphoneTransportTests", dependencies: ["BabyphoneTransport", "TestSupport"]),
 ]
 #endif
 
 targets += [
     .target(name: "BabyphoneCore", dependencies: coreDependencies),
-    .testTarget(name: "BabyphoneCoreTests", dependencies: ["BabyphoneCore"]),
+    // Waits with a deadline, shared by both test targets.
+    .target(name: "TestSupport", dependencies: ["BabyphoneCore"], path: "Tests/TestSupport"),
+    .testTarget(name: "BabyphoneCoreTests", dependencies: ["BabyphoneCore", "TestSupport"]),
 ]
 
 let package = Package(

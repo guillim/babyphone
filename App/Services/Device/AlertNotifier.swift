@@ -14,6 +14,10 @@ enum AlertNotifier {
     private static let watchdogDelay: TimeInterval = 90
 
     static func requestAuthorization() async {
+        #if DEBUG
+        // No simulator command can answer this prompt, so UI tests go without notifications.
+        guard ProcessInfo.processInfo.environment["NID_UI_TEST_STATE"] == nil else { return }
+        #endif
         _ = try? await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound])
     }
 

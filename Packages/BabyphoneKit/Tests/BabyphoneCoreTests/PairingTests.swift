@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+import TestSupport
 @testable import BabyphoneCore
 
 @Suite(.timeLimit(.minutes(1))) struct PairingTests {

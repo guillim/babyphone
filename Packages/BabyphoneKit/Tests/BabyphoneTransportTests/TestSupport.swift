@@ -2,6 +2,7 @@ import BabyphoneCore
 @testable import BabyphoneTransport
 import Foundation
 @preconcurrency import Network
+import TestSupport
 @preconcurrency import WebRTC
 
 enum TestMedia {
@@ -28,27 +29,6 @@ extension LinkTimings {
         timings.rendezvousPoll = .milliseconds(200)
         timings.retryBackoff = [.milliseconds(500)]
         return timings
-    }
-}
-
-/// Waits until `stream` produces a value satisfying `predicate`. Returns false on timeout.
-func waitFor<Value: Sendable>(
-    _ stream: AsyncStream<Value>,
-    timeout: Duration = .seconds(30),
-    _ predicate: @escaping @Sendable (Value) -> Bool
-) async -> Bool {
-    await withTaskGroup(of: Bool.self) { group in
-        group.addTask {
-            for await value in stream where predicate(value) { return true }
-            return false
-        }
-        group.addTask {
-            try? await Task.sleep(for: timeout)
-            return false
-        }
-        let result = await group.next() ?? false
-        group.cancelAll()
-        return result
     }
 }
 
@@ -86,6 +66,10 @@ final class LoopbackListener: @unchecked Sendable {
                 }
             }
             listener.start(queue: LocalTransport.queue)
+            // A listener that never becomes ready must not hold the test.
+            LocalTransport.queue.asyncAfter(deadline: .now() + 5) {
+                ready(.failure(LocalNetworkError.notFound))
+            }
         }
         guard let port = listener.port else { throw LocalNetworkError.notFound }
         return port
@@ -163,18 +147,32 @@ struct NoLocalNetwork: LocalSignalingListening, LocalSignalingConnecting {
     }
 }
 
-/// A rendezvous provider that keeps records in memory.
-final class MemoryRendezvous: RendezvousProvider, @unchecked Sendable {
-    private let lock = NSLock()
-    private var records: [String: Data] = [:]
+/// Waits until `stream` produces a value satisfying `predicate`. Returns false on timeout.
+func waitFor<Value: Sendable>(
+    _ stream: AsyncStream<Value>,
+    timeout: Duration = .seconds(30),
+    _ predicate: @escaping @Sendable (Value) -> Bool
+) async -> Bool {
+    await value(within: timeout) {
+        for await value in stream where predicate(value) { return true }
+        return false
+    } ?? false
+}
 
-    func availability() async -> RendezvousAvailability { .available }
+struct StepTimedOut: Error {}
 
-    func publish(_ record: Data, to slot: RendezvousSlot) async throws {
-        lock.withLock { records[slot.name] = record }
+/// Runs one step of a test against the real stacks, failing instead of waiting if it does not complete.
+func step<Value: Sendable>(
+    within timeout: Duration = .seconds(15),
+    _ operation: @escaping @Sendable () async throws -> Value
+) async throws -> Value {
+    let outcome: Result<Value, any Error>? = await value(within: timeout) {
+        do {
+            return .success(try await operation())
+        } catch {
+            return .failure(error)
+        }
     }
-
-    func fetch(_ slot: RendezvousSlot) async throws -> Data? {
-        lock.withLock { records[slot.name] }
-    }
+    guard let outcome else { throw StepTimedOut() }
+    return try outcome.get()
 }

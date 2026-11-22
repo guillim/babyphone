@@ -49,7 +49,7 @@ final class SmokeTests: AppTestCase {
         attachScreenshot(named: "4-baby-idle")
 
         start.tap()
-        acceptSystemAlerts(within: 8)
+        acceptSystemAlerts()
         // A machine without a microphone cannot monitor: the app must say so instead of failing silently.
         let stop = app.buttons["baby.stop"], failure = app.staticTexts["baby.startFailure"]
         let outcome = expectation(for: NSPredicate { _, _ in stop.exists || failure.exists }, evaluatedWith: nil)
@@ -64,7 +64,7 @@ final class SmokeTests: AppTestCase {
     func testParentUnitShowsTheLiveScreenThenExplainsTheFailure() {
         let app = launch(state: "parent-paired")
         // Notifications, then the microphone.
-        acceptSystemAlerts(within: 8)
+        acceptSystemAlerts()
 
         // The live screen shows while the app searches. It only lasts a few seconds here,
         // so it is captured when seen. The two-phone test checks it for real.

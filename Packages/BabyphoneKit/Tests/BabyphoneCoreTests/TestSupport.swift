@@ -1,4 +1,5 @@
 import Foundation
+import TestSupport
 @testable import BabyphoneCore
 
 /// Timings a thousand times shorter than the real ones, so link tests run in milliseconds.
@@ -19,21 +20,6 @@ extension LinkTimings {
         timings.retryBackoff = [.milliseconds(50)]
         return timings
     }
-}
-
-final class Locked<Value>: @unchecked Sendable {
-    private let lock = NSLock()
-    private var value: Value
-
-    init(_ value: Value) { self.value = value }
-
-    func withLock<Result>(_ body: (inout Value) throws -> Result) rethrows -> Result {
-        lock.lock()
-        defer { lock.unlock() }
-        return try body(&value)
-    }
-
-    var current: Value { withLock { $0 } }
 }
 
 /// One end of an in-memory frame channel.
@@ -214,77 +200,5 @@ final class FakeLocalNetwork: LocalSignalingListening, LocalSignalingConnecting,
             try? await Task.sleep(for: .milliseconds(5))
         }
         throw Failure.babyNotFound
-    }
-}
-
-/// A rendezvous provider that keeps records in memory.
-final class MemoryRendezvous: RendezvousProvider, @unchecked Sendable {
-    let records = Locked([String: Data]())
-    let publishCount = Locked(0)
-    private let status = Locked(RendezvousAvailability.available)
-
-    var currentAvailability: RendezvousAvailability {
-        get { status.current }
-        set { status.withLock { $0 = newValue } }
-    }
-
-    func availability() async -> RendezvousAvailability { currentAvailability }
-
-    func publish(_ record: Data, to slot: RendezvousSlot) async throws {
-        records.withLock { $0[slot.name] = record }
-        publishCount.withLock { $0 += 1 }
-    }
-
-    func fetch(_ slot: RendezvousSlot) async throws -> Data? {
-        records.current[slot.name]
-    }
-}
-
-/// Collects the values of an async stream so a test can wait for a particular one.
-final class Recorder<Value: Sendable & Equatable>: @unchecked Sendable {
-    private let values = Locked([Value]())
-    private let task: Task<Void, Never>
-
-    init(_ stream: AsyncStream<Value>) {
-        let values = values
-        task = Task {
-            for await value in stream {
-                values.withLock { $0.append(value) }
-            }
-        }
-    }
-
-    deinit { task.cancel() }
-
-    var all: [Value] { values.current }
-
-    /// Waits until a value satisfying `predicate` has been seen. Returns false on timeout.
-    func waitFor(timeout: Duration = .seconds(5), _ predicate: @Sendable (Value) -> Bool) async -> Bool {
-        let deadline = ContinuousClock.now + timeout
-        while ContinuousClock.now < deadline {
-            if all.contains(where: predicate) { return true }
-            try? await Task.sleep(for: .milliseconds(5))
-        }
-        return false
-    }
-
-    /// Waits until `count` values satisfying `predicate` have been seen. Returns false on timeout.
-    func waitForCount(_ count: Int, timeout: Duration = .seconds(5), _ predicate: @Sendable (Value) -> Bool) async -> Bool {
-        let deadline = ContinuousClock.now + timeout
-        while ContinuousClock.now < deadline {
-            if all.filter(predicate).count >= count { return true }
-            try? await Task.sleep(for: .milliseconds(5))
-        }
-        return false
-    }
-
-    /// Waits until the most recent value satisfies `predicate`. Returns false on timeout.
-    func waitForLatest(timeout: Duration = .seconds(5), _ predicate: @Sendable (Value) -> Bool) async -> Bool {
-        let deadline = ContinuousClock.now + timeout
-        while ContinuousClock.now < deadline {
-            if let latest = all.last, predicate(latest) { return true }
-            try? await Task.sleep(for: .milliseconds(5))
-        }
-        return false
     }
 }

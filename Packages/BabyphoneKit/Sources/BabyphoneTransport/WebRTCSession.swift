@@ -7,11 +7,23 @@ import Foundation
 /// The connection uses host candidates only: the ICE server list is empty, so
 /// there is no STUN lookup and no TURN relay. Each side's description already
 /// carries all its addresses, which is why one message each way is enough.
+///
+/// Threading. Most of the WebRTC API is synchronous and waits for WebRTC's own
+/// signaling or network thread, and WebRTC calls back on those same threads.
+/// Three rules keep any thread from waiting on another for ever:
+///
+/// - Every call into WebRTC is made on `queue`, a serial queue of this session.
+///   Callers never block: they hand over the work and, when they need a result,
+///   wait for it without holding a thread.
+/// - A callback from WebRTC never calls into WebRTC. It records what it was
+///   told and returns. Anything more is done later on `queue`.
+/// - Nothing calls into WebRTC while holding `lock`.
 public final class WebRTCSession: NSObject, PeerSession, @unchecked Sendable {
     public enum Failure: Error {
         case cannotCreateConnection
         case cannotCreateDataChannel
         case negotiationFailed
+        case closed
     }
 
     /// Addresses of the two ends of the connection in use.
@@ -28,21 +40,15 @@ public final class WebRTCSession: NSObject, PeerSession, @unchecked Sendable {
     /// Gathering host candidates takes milliseconds. This only guards against a stack that never reports completion.
     private static let gatheringTimeout: Duration = .seconds(2)
 
-    private let connection: RTCPeerConnection
     private let eventContinuation: AsyncStream<PeerSessionEvent>.Continuation
-    /// WebRTC calls back on its own network and signaling threads, and most of its API
-    /// waits on one of those threads. Two rules keep them from waiting on each other for ever:
-    ///
-    /// - A callback never calls into WebRTC. Asking a data channel for its state from the
-    ///   network thread waits for the signaling thread, which may itself be closing the
-    ///   connection and waiting for the network thread. Such work moves to `callbackQueue`.
-    /// - Nothing calls into WebRTC while holding `lock`. The state it guards is a copy of
-    ///   what the callbacks reported, never a live query.
-    private let callbackQueue = DispatchQueue(label: "nid.webrtc-session")
-    private let lock = NSLock()
+    private let queue = DispatchQueue(label: "nid.webrtc-session")
+    // Only touched on `queue`.
+    private var connection: RTCPeerConnection?
     private var dataChannel: RTCDataChannel?
     private var talkBackSender: RTCRtpSender?
     private var videoSender: RTCRtpSender?
+    // Guarded by `lock`: a copy of what WebRTC reported, readable from any thread.
+    private let lock = NSLock()
     private var incomingVideo: RTCVideoTrack?
     private var isTransportConnected = false
     private var isChannelOpen = false
@@ -71,38 +77,17 @@ public final class WebRTCSession: NSObject, PeerSession, @unchecked Sendable {
 
     /// Attaches the tracks this end sends. Call before `makeOffer`.
     public func addOutgoingMedia(audio: RTCAudioTrack, video: RTCVideoTrack, maxVideoBitrate: Int, maxFramerate: Int) {
-        connection.add(audio, streamIds: ["room"])
-        guard let videoSender = connection.add(video, streamIds: ["room"]) else { return }
-        let parameters = videoSender.parameters
-        for encoding in parameters.encodings {
-            encoding.maxBitrateBps = NSNumber(value: maxVideoBitrate)
-            encoding.maxFramerate = NSNumber(value: maxFramerate)
-        }
-        videoSender.parameters = parameters
-        lock.withLock { self.videoSender = videoSender }
-    }
-
-    /// Sends the picture to this peer, or holds it back while the sound keeps flowing.
-    /// Each peer has its own setting, so one parent's audio-only mode leaves the other's picture alone.
-    public func setOutgoingVideoActive(_ isActive: Bool) {
-        guard let sender = lock.withLock({ videoSender }) else { return }
-        let parameters = sender.parameters
-        for encoding in parameters.encodings {
-            encoding.isActive = isActive
-        }
-        sender.parameters = parameters
-    }
-
-    /// How many frames of the incoming picture have been decoded so far.
-    /// A count that stops rising while the picture should flow means the stream has frozen.
-    public func decodedVideoFrameCount() async -> Int? {
-        await withCheckedContinuation { continuation in
-            connection.statistics { report in
-                let inbound = report.statistics.values.first {
-                    $0.type == "inbound-rtp" && ($0.values["kind"] as? String) == "video"
-                }
-                continuation.resume(returning: (inbound?.values["framesDecoded"] as? NSNumber)?.intValue)
+        queue.async { [self] in
+            guard let connection else { return }
+            connection.add(audio, streamIds: ["room"])
+            guard let sender = connection.add(video, streamIds: ["room"]) else { return }
+            let parameters = sender.parameters
+            for encoding in parameters.encodings {
+                encoding.maxBitrateBps = NSNumber(value: maxVideoBitrate)
+                encoding.maxFramerate = NSNumber(value: maxFramerate)
             }
+            sender.parameters = parameters
+            videoSender = sender
         }
     }
 
@@ -113,43 +98,65 @@ public final class WebRTCSession: NSObject, PeerSession, @unchecked Sendable {
 
     /// Starts or stops sending audio towards the other end. Needs no renegotiation.
     public func setOutgoingAudio(_ track: RTCAudioTrack?) {
-        lock.withLock { talkBackSender }?.track = track
+        queue.async { [self] in
+            talkBackSender?.track = track
+        }
+    }
+
+    /// Sends the picture to this peer, or holds it back while the sound keeps flowing.
+    /// Each peer has its own setting, so one parent's audio-only mode leaves the other's picture alone.
+    public func setOutgoingVideoActive(_ isActive: Bool) {
+        queue.async { [self] in
+            guard let videoSender else { return }
+            let parameters = videoSender.parameters
+            for encoding in parameters.encodings {
+                encoding.isActive = isActive
+            }
+            videoSender.parameters = parameters
+        }
     }
 
     /// The addresses of the candidate pair that carries the media, for diagnostics.
     public func selectedPath() async -> Path? {
-        await withCheckedContinuation { continuation in
-            connection.statistics { report in
-                let statistics = report.statistics
-                // The transport names the pair in use. Older stacks only flag it on the pair itself.
-                let selectedID = statistics.values
-                    .first { $0.type == "transport" && $0.values["selectedCandidatePairId"] != nil }?
-                    .values["selectedCandidatePairId"] as? String
-                let pair = selectedID.flatMap { statistics[$0] } ?? statistics.values.first {
-                    $0.type == "candidate-pair" && ($0.values["nominated"] as? NSNumber)?.boolValue == true
-                }
-                func address(_ key: String) -> String? {
-                    guard let id = pair?.values[key] as? String, let candidate = statistics[id] else { return nil }
-                    return (candidate.values["address"] ?? candidate.values["ip"]) as? String
-                }
-                if let local = address("localCandidateId"), let remote = address("remoteCandidateId") {
-                    continuation.resume(returning: Path(local: local, remote: remote))
-                } else {
-                    continuation.resume(returning: nil)
-                }
+        await statistics { statistics in
+            // The transport names the pair in use. Older stacks only flag it on the pair itself.
+            let selectedID = statistics.values
+                .first { $0.type == "transport" && $0.values["selectedCandidatePairId"] != nil }?
+                .values["selectedCandidatePairId"] as? String
+            let pair = selectedID.flatMap { statistics[$0] } ?? statistics.values.first {
+                $0.type == "candidate-pair" && ($0.values["nominated"] as? NSNumber)?.boolValue == true
             }
+            func address(_ key: String) -> String? {
+                guard let id = pair?.values[key] as? String, let candidate = statistics[id] else { return nil }
+                return (candidate.values["address"] ?? candidate.values["ip"]) as? String
+            }
+            guard let local = address("localCandidateId"), let remote = address("remoteCandidateId") else { return nil }
+            return Path(local: local, remote: remote)
+        }
+    }
+
+    /// How many frames of the incoming picture have been decoded so far.
+    /// A count that stops rising while the picture should flow means the stream has frozen.
+    public func decodedVideoFrameCount() async -> Int? {
+        await statistics { statistics in
+            let inbound = statistics.values.first {
+                $0.type == "inbound-rtp" && ($0.values["kind"] as? String) == "video"
+            }
+            return (inbound?.values["framesDecoded"] as? NSNumber)?.intValue
         }
     }
 
     // MARK: PeerSession
 
     public func makeOffer() async throws -> String {
-        let channelConfiguration = RTCDataChannelConfiguration()
-        channelConfiguration.isOrdered = true
-        guard let channel = connection.dataChannel(forLabel: "control", configuration: channelConfiguration) else {
-            throw Failure.cannotCreateDataChannel
+        try await onQueue { [self] connection in
+            let configuration = RTCDataChannelConfiguration()
+            configuration.isOrdered = true
+            guard let channel = connection.dataChannel(forLabel: "control", configuration: configuration) else {
+                throw Failure.cannotCreateDataChannel
+            }
+            adopt(channel)
         }
-        adopt(channel)
         let offer = try await createDescription(.offer)
         try await setDescription(.offer, offer, isLocal: true)
         return try await completeLocalDescription()
@@ -157,7 +164,9 @@ public final class WebRTCSession: NSObject, PeerSession, @unchecked Sendable {
 
     public func makeAnswer(to offer: String) async throws -> String {
         try await setDescription(.offer, offer, isLocal: false)
-        prepareIncomingMedia()
+        try await onQueue { [self] connection in
+            prepareIncomingMedia(of: connection)
+        }
         let answer = try await createDescription(.answer)
         try await setDescription(.answer, answer, isLocal: true)
         return try await completeLocalDescription()
@@ -169,14 +178,58 @@ public final class WebRTCSession: NSObject, PeerSession, @unchecked Sendable {
 
     @discardableResult
     public func send(_ data: Data) -> Bool {
-        let channel = lock.withLock { isChannelOpen ? dataChannel : nil }
-        return channel?.sendData(RTCDataBuffer(data: data, isBinary: true)) ?? false
+        guard lock.withLock({ isChannelOpen }) else { return false }
+        queue.async { [self] in
+            dataChannel?.sendData(RTCDataBuffer(data: data, isBinary: true))
+        }
+        return true
     }
 
     public func close() {
-        connection.close()
         eventContinuation.finish()
         resumeGatheringWaiters()
+        lock.withLock { isChannelOpen = false }
+        queue.async { [self] in
+            connection?.close()
+            // Released here, on the session's own queue: letting go of a connection waits on WebRTC's threads too.
+            connection = nil
+            dataChannel = nil
+            talkBackSender = nil
+            videoSender = nil
+        }
+    }
+
+    // MARK: Work on the session's queue
+
+    /// Runs `work` on the session's queue and returns its result, without holding the caller's thread.
+    private func onQueue<Result: Sendable>(
+        _ work: @escaping @Sendable (RTCPeerConnection) throws -> Result
+    ) async throws -> Result {
+        try await withCheckedThrowingContinuation { continuation in
+            queue.async { [self] in
+                guard let connection else {
+                    continuation.resume(throwing: Failure.closed)
+                    return
+                }
+                continuation.resume(with: Swift.Result { try work(connection) })
+            }
+        }
+    }
+
+    private func statistics<Value: Sendable>(
+        _ extract: @escaping @Sendable ([String: RTCStatistics]) -> Value?
+    ) async -> Value? {
+        await withCheckedContinuation { continuation in
+            queue.async { [self] in
+                guard let connection else {
+                    continuation.resume(returning: nil)
+                    return
+                }
+                connection.statistics { report in
+                    continuation.resume(returning: extract(report.statistics))
+                }
+            }
+        }
     }
 
     // MARK: Negotiation
@@ -190,17 +243,22 @@ public final class WebRTCSession: NSObject, PeerSession, @unchecked Sendable {
                     continuation.resume(throwing: error ?? Failure.negotiationFailed)
                 }
             }
-            if type == .offer {
-                connection.offer(for: Self.noConstraints, completionHandler: completion)
-            } else {
-                connection.answer(for: Self.noConstraints, completionHandler: completion)
+            queue.async { [self] in
+                guard let connection else {
+                    continuation.resume(throwing: Failure.closed)
+                    return
+                }
+                if type == .offer {
+                    connection.offer(for: Self.noConstraints, completionHandler: completion)
+                } else {
+                    connection.answer(for: Self.noConstraints, completionHandler: completion)
+                }
             }
         }
     }
 
     private func setDescription(_ type: RTCSdpType, _ sdp: String, isLocal: Bool) async throws {
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, any Error>) in
-            let description = RTCSessionDescription(type: type, sdp: sdp)
             let completion: @Sendable ((any Error)?) -> Void = { error in
                 if let error {
                     continuation.resume(throwing: error)
@@ -208,10 +266,17 @@ public final class WebRTCSession: NSObject, PeerSession, @unchecked Sendable {
                     continuation.resume()
                 }
             }
-            if isLocal {
-                connection.setLocalDescription(description, completionHandler: completion)
-            } else {
-                connection.setRemoteDescription(description, completionHandler: completion)
+            queue.async { [self] in
+                guard let connection else {
+                    continuation.resume(throwing: Failure.closed)
+                    return
+                }
+                let description = RTCSessionDescription(type: type, sdp: sdp)
+                if isLocal {
+                    connection.setLocalDescription(description, completionHandler: completion)
+                } else {
+                    connection.setRemoteDescription(description, completionHandler: completion)
+                }
             }
         }
     }
@@ -231,8 +296,10 @@ public final class WebRTCSession: NSObject, PeerSession, @unchecked Sendable {
             }
             if isComplete { continuation.resume() }
         }
-        guard let description = connection.localDescription else { throw Failure.negotiationFailed }
-        return description.sdp
+        return try await onQueue { connection in
+            guard let description = connection.localDescription else { throw Failure.negotiationFailed }
+            return description.sdp
+        }
     }
 
     /// Lets every caller waiting for the local addresses go on. Later callers do not wait at all.
@@ -247,14 +314,14 @@ public final class WebRTCSession: NSObject, PeerSession, @unchecked Sendable {
 
     /// On the answering side: keeps the incoming picture, and opens the audio
     /// line in both directions so talk-back can start later without renegotiating.
-    private func prepareIncomingMedia() {
+    /// Runs on `queue`.
+    private func prepareIncomingMedia(of connection: RTCPeerConnection) {
         for transceiver in connection.transceivers {
             switch transceiver.mediaType {
             case .audio:
                 var error: NSError?
                 transceiver.setDirection(.sendRecv, error: &error)
-                let sender = transceiver.sender
-                lock.withLock { talkBackSender = sender }
+                talkBackSender = transceiver.sender
             case .video:
                 let track = transceiver.receiver.track as? RTCVideoTrack
                 lock.withLock { incomingVideo = track }
@@ -264,12 +331,14 @@ public final class WebRTCSession: NSObject, PeerSession, @unchecked Sendable {
         }
     }
 
+    /// Runs on `queue`.
     private func adopt(_ channel: RTCDataChannel) {
-        lock.withLock { dataChannel = channel }
+        dataChannel = channel
         channel.delegate = self
         channelStateDidChange(channel)
     }
 
+    /// Runs on `queue`.
     private func channelStateDidChange(_ channel: RTCDataChannel) {
         let state = channel.readyState
         lock.withLock { isChannelOpen = state == .open }
@@ -294,6 +363,7 @@ public final class WebRTCSession: NSObject, PeerSession, @unchecked Sendable {
     }
 }
 
+// Callbacks from WebRTC's own threads. None of them calls into WebRTC.
 extension WebRTCSession: RTCPeerConnectionDelegate {
     public func peerConnection(_ peerConnection: RTCPeerConnection, didChange newState: RTCIceConnectionState) {
         switch newState {
@@ -315,7 +385,7 @@ extension WebRTCSession: RTCPeerConnectionDelegate {
     }
 
     public func peerConnection(_ peerConnection: RTCPeerConnection, didOpen dataChannel: RTCDataChannel) {
-        callbackQueue.async { [weak self] in
+        queue.async { [weak self] in
             self?.adopt(dataChannel)
         }
     }
@@ -330,7 +400,7 @@ extension WebRTCSession: RTCPeerConnectionDelegate {
 
 extension WebRTCSession: RTCDataChannelDelegate {
     public func dataChannelDidChangeState(_ dataChannel: RTCDataChannel) {
-        callbackQueue.async { [weak self] in
+        queue.async { [weak self] in
             self?.channelStateDidChange(dataChannel)
         }
     }

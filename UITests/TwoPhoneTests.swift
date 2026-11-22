@@ -9,10 +9,10 @@ import XCTest
 /// the `NID_SHARED_DIR` environment variable. Without it the tests are skipped.
 final class TwoPhoneTests: AppTestCase {
     /// How long one side waits for something on its own screen.
-    private let step: TimeInterval = 120
-    /// How long one side waits for the other. Two simulators on one build
-    /// machine can start many minutes apart.
-    private let handover: TimeInterval = 1200
+    private let step: TimeInterval = 90
+    /// How long one side waits for the other. Both simulators are booted before
+    /// the session starts, so the two sides begin within seconds of each other.
+    private let handover: TimeInterval = 240
 
     private func sharedFolder() throws -> URL {
         let path = ProcessInfo.processInfo.environment["NID_SHARED_DIR"]
@@ -48,7 +48,7 @@ final class TwoPhoneTests: AppTestCase {
         let start = app.buttons["baby.start"]
         XCTAssertTrue(start.waitForExistence(timeout: handover), "The parent side never completed pairing")
         start.tap()
-        acceptSystemAlerts(within: 8)
+        acceptSystemAlerts()
         XCTAssertTrue(app.buttons["baby.stop"].waitForExistence(timeout: step), "Monitoring did not start")
 
         // Connected: the parent unit found this phone and the direct link is up.
@@ -78,7 +78,7 @@ final class TwoPhoneTests: AppTestCase {
         type(code, into: field)
 
         // Paired: the monitor appears and looks for the baby unit by itself.
-        acceptSystemAlerts(within: 8)
+        acceptSystemAlerts()
         let live = app.descendants(matching: .any)["parent.live"]
         XCTAssertTrue(
             waitUntil(step) { app.buttons["parent.talk"].exists || app.buttons["failure.retry"].exists },

@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+import TestSupport
 @testable import BabyphoneCore
 
 @Suite(.timeLimit(.minutes(1))) struct PeerLinkTests {
@@ -22,10 +23,8 @@ import Testing
         await first.send(Data("ping".utf8))
         await second.send(Data("pong".utf8))
 
-        var received = second.payloads.makeAsyncIterator()
-        #expect(await received.next() == Data("ping".utf8))
-        var replied = first.payloads.makeAsyncIterator()
-        #expect(await replied.next() == Data("pong".utf8))
+        #expect(await next(of: second.payloads) == Data("ping".utf8))
+        #expect(await next(of: first.payloads) == Data("pong".utf8))
     }
 
     @Test func staysUpWhileKeepalivesFlow() async throws {
@@ -33,21 +32,20 @@ import Testing
         // Several silence timeouts pass with no application traffic at all.
         try await Task.sleep(for: .milliseconds(700))
         await first.send(Data([1]))
-        var received = second.payloads.makeAsyncIterator()
-        #expect(await received.next() == Data([1]))
+        #expect(await next(of: second.payloads) == Data([1]))
     }
 
     @Test func endsWhenThePeerGoesSilent() async throws {
         let (first, second, _, _) = try await connectedPair()
         network.isReachable = false
-        #expect(await first.waitUntilEnded() == .silent)
-        #expect(await second.waitUntilEnded() == .silent)
+        #expect(await value { await first.waitUntilEnded() } == .silent)
+        #expect(await value { await second.waitUntilEnded() } == .silent)
     }
 
     @Test func endsWhenTheSessionFails() async throws {
         let (first, _, offerer, _) = try await connectedPair()
         offerer.fail()
-        #expect(await first.waitUntilEnded() == .failed)
+        #expect(await value { await first.waitUntilEnded() } == .failed)
         #expect(offerer.isClosed)
     }
 
@@ -56,7 +54,7 @@ import Testing
         let link = PeerLink(session: session, route: .remote, timings: .fast)
         #expect(await link.waitUntilConnected(timeout: .milliseconds(50)) == false)
         await link.close()
-        #expect(await link.waitUntilEnded() == .closed)
+        #expect(await value { await link.waitUntilEnded() } == .closed)
         #expect(await link.waitUntilConnected(timeout: .milliseconds(50)) == false)
     }
 }
@@ -96,8 +94,8 @@ import Testing
         #expect(await hostStates.waitFor { $0 == .connected(.local) })
         #expect(cloud.publishCount.current == 0)
 
-        await connector.stop()
-        await host.stop()
+        #expect(await finishes { await connector.stop() })
+        #expect(await finishes { await host.stop() })
     }
 
     @Test func connectsRemotelyWhenThePhonesAreOnDifferentNetworks() async throws {
@@ -113,8 +111,8 @@ import Testing
         #expect(await hostStates.waitFor { $0 == .connected(.remote) })
         #expect(parentStates.all.contains(.connecting(.remote)))
 
-        await connector.stop()
-        await host.stop()
+        #expect(await finishes { await connector.stop() })
+        #expect(await finishes { await host.stop() })
     }
 
     @Test func messagesFlowBothWaysOnceConnected() async throws {
@@ -127,13 +125,11 @@ import Testing
 
         await connector.send(Data("hello".utf8))
         await host.send(Data("status".utf8))
-        var atHost = host.payloads.makeAsyncIterator()
-        var atParent = connector.payloads.makeAsyncIterator()
-        #expect(await atHost.next() == Data("hello".utf8))
-        #expect(await atParent.next() == Data("status".utf8))
+        #expect(await next(of: host.payloads) == Data("hello".utf8))
+        #expect(await next(of: connector.payloads) == Data("status".utf8))
 
-        await connector.stop()
-        await host.stop()
+        #expect(await finishes { await connector.stop() })
+        #expect(await finishes { await host.stop() })
     }
 
     @Test func reconnectsRemotelyAfterLeavingTheLocalNetwork() async throws {
@@ -153,8 +149,8 @@ import Testing
         #expect(await parentStates.waitForLatest { $0 == .connected(.remote) }, "parent: \(parentStates.all)")
         #expect(await hostStates.waitForLatest { $0 == .connected(.remote) }, "host: \(hostStates.all)")
 
-        await connector.stop()
-        await host.stop()
+        #expect(await finishes { await connector.stop() })
+        #expect(await finishes { await host.stop() })
     }
 
     @Test func reportsNoDirectPathWhenAddressesAreKnownButPacketsDoNotPass() async throws {
@@ -172,8 +168,8 @@ import Testing
         media.isReachable = true
         #expect(await parentStates.waitFor(timeout: .seconds(10)) { $0 == .connected(.remote) })
 
-        await connector.stop()
-        await host.stop()
+        #expect(await finishes { await connector.stop() })
+        #expect(await finishes { await host.stop() })
     }
 
     @Test func reportsBabyOfflineWhenNothingIsPublished() async throws {
@@ -183,7 +179,7 @@ import Testing
         await connector.start()
 
         #expect(await parentStates.waitFor(timeout: .seconds(10)) { $0 == .unreachable(.babyOffline) })
-        await connector.stop()
+        #expect(await finishes { await connector.stop() })
     }
 
     @Test func reportsBabyOfflineAfterMonitoringStops() async throws {
@@ -192,14 +188,14 @@ import Testing
         let access = Recorder(host.remoteAccessChanges)
         await host.start()
         #expect(await access.waitFor { $0 == .ready })
-        await host.stop()
+        #expect(await finishes { await host.stop() })
 
         let connector = makeConnector()
         let parentStates = Recorder(connector.states)
         await connector.start()
         #expect(await parentStates.waitFor(timeout: .seconds(10)) { $0 == .unreachable(.babyOffline) })
         #expect(!parentStates.all.contains(.connecting(.remote)))
-        await connector.stop()
+        #expect(await finishes { await connector.stop() })
     }
 
     @Test func ignoresAbandonedOffers() async throws {
@@ -215,7 +211,7 @@ import Testing
         await connector.start()
         #expect(await parentStates.waitFor(timeout: .seconds(10)) { $0 == .unreachable(.babyOffline) })
         #expect(media.createdSessions.current == 0)
-        await connector.stop()
+        #expect(await finishes { await connector.stop() })
     }
 
     @Test func reportsRendezvousUnavailableWithoutAnAccount() async throws {
@@ -235,8 +231,8 @@ import Testing
         await connector.retryNow()
         #expect(await parentStates.waitFor { $0 == .connected(.local) })
 
-        await connector.stop()
-        await host.stop()
+        #expect(await finishes { await connector.stop() })
+        #expect(await finishes { await host.stop() })
     }
 
     @Test func babyUnitReplacesItsOfferWhenItsNetworkChanges() async throws {
@@ -257,7 +253,7 @@ import Testing
         }
         #expect(second.sessionID != first.sessionID)
         #expect(second.description != nil)
-        await host.stop()
+        #expect(await finishes { await host.stop() })
     }
 
     @Test func reconnectsOnRequest() async throws {
@@ -273,8 +269,8 @@ import Testing
         #expect(await parentStates.waitForCount(2) { $0 == .connected(.local) })
         #expect(media.createdSessions.current == 4)
 
-        await connector.stop()
-        await host.stop()
+        #expect(await finishes { await connector.stop() })
+        #expect(await finishes { await host.stop() })
     }
 
     @Test func twoParentsFollowTheSameBabyUnit() async throws {
@@ -296,16 +292,15 @@ import Testing
         #expect(await secondHostStates.waitFor { $0 == .connected(.local) })
 
         // One parent leaves. The other is not disturbed.
-        await firstParent.stop()
+        #expect(await finishes { await firstParent.stop() })
         #expect(await firstHostStates.waitForLatest { $0 == .waiting })
         await secondHost.send(Data("still here".utf8))
-        var atSecond = secondParent.payloads.makeAsyncIterator()
-        #expect(await atSecond.next() == Data("still here".utf8))
+        #expect(await next(of: secondParent.payloads) == Data("still here".utf8))
         #expect(secondStates.all.last == .connected(.local))
 
-        await secondParent.stop()
-        await firstHost.stop()
-        await secondHost.stop()
+        #expect(await finishes { await secondParent.stop() })
+        #expect(await finishes { await firstHost.stop() })
+        #expect(await finishes { await secondHost.stop() })
     }
 
     @Test func stoppingTheHostDisconnectsTheParent() async throws {
@@ -316,11 +311,11 @@ import Testing
         #expect(await parentStates.waitFor { $0 == .connected(.local) })
         #expect(await hostStates.waitFor { $0 == .connected(.local) })
 
-        await host.stop()
+        #expect(await finishes { await host.stop() })
         #expect(await hostStates.waitForLatest { $0 == .stopped })
         #expect(await parentStates.waitForLatest(timeout: .seconds(10)) {
             if case .unreachable = $0 { true } else { false }
         })
-        await connector.stop()
+        #expect(await finishes { await connector.stop() })
     }
 }

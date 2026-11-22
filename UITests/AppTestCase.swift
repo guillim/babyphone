@@ -17,9 +17,9 @@ class AppTestCase: XCTestCase {
 
     /// Accepts every system permission alert that shows up within `seconds`.
     ///
-    /// A slow simulator can take a long time to present an alert, so tests call
-    /// this again right before any step an alert would block.
-    func acceptSystemAlerts(within seconds: TimeInterval = 4) {
+    /// In CI the permissions are granted before launch, so this returns after a short look.
+    /// It matters when the tests run from Xcode on a fresh simulator.
+    func acceptSystemAlerts(within seconds: TimeInterval = 2) {
         let deadline = Date().addingTimeInterval(seconds)
         repeat {
             let alert = springboard.alerts.firstMatch

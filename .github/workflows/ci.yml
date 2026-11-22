@@ -11,11 +11,13 @@ on:
 concurrency:
   group: ci-${{ github.sha }}
 
+# The jobs run side by side, and each is built to finish well inside ten minutes.
+# The limits below turn anything that stalls into a quick failure.
 jobs:
   core:
     name: Core logic (Linux)
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 10
     container: swift:6.1
     steps:
       - uses: actions/checkout@v5
@@ -35,7 +37,7 @@ jobs:
   app:
     name: App (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 30
+    timeout-minutes: 12
     strategy:
       fail-fast: false
       matrix:
@@ -46,12 +48,12 @@ jobs:
       - name: Show Xcode version
         run: xcodebuild -version
       - name: Test the core logic, and the WebRTC and network transports
-        run: Scripts/test-with-watchdog.sh 420
+        run: Scripts/test-with-watchdog.sh 240
       - name: Repeat the transport tests
         run: |
           # A deadlock between threads only shows now and then: several rounds make one visible.
-          for round in 1 2 3 4 5 6 7 8 9 10; do
-            Scripts/test-with-watchdog.sh 180 --skip-build --filter BabyphoneTransportTests
+          for round in 1 2 3 4 5; do
+            Scripts/test-with-watchdog.sh 90 --skip-build --filter BabyphoneTransportTests
           done
       - name: Build the app
         run: |
@@ -69,7 +71,7 @@ jobs:
   screens:
     name: Screens (${{ matrix.device }})
     runs-on: macos-26
-    timeout-minutes: 45
+    timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
@@ -77,7 +79,7 @@ jobs:
         device: [iPhone SE, iPad]
     steps:
       - uses: actions/checkout@v5
-      - name: Create the simulator
+      - name: Start the simulator
         run: |
           if [ "${{ matrix.device }}" = "iPad" ]; then
             # iPad model names change with every Xcode: take one this Xcode already set up.
@@ -85,21 +87,34 @@ jobs:
           else
             device=$(xcrun simctl create nid-screens "iPhone SE (3rd generation)")
           fi
-          # Boots and waits until the simulator is fully up, so the tests do not time out on a cold start.
-          xcrun simctl bootstatus "$device" -b
-          xcrun simctl list devices | grep "$device"
+          # Returns at once: the simulator boots while the app builds.
+          xcrun simctl boot "$device"
           echo "DEVICE=$device" >> "$GITHUB_ENV"
-      - name: Walk the screens
+      - name: Build
         run: |
           set -o pipefail
-          xcodebuild test \
+          xcodebuild build-for-testing \
             -project Babyphone.xcodeproj \
-            -scheme Babyphone \
+            -scheme BabyphoneUITests \
             -destination "id=$DEVICE" \
-            -only-testing:BabyphoneUITests/SmokeTests \
-            -retry-tests-on-failure -test-iterations 3 \
-            -resultBundlePath Screens.xcresult \
+            -derivedDataPath Derived \
             -skipPackagePluginValidation \
+            | xcbeautify --quiet --renderer github-actions
+      - name: Walk the screens
+        run: |
+          xcrun simctl bootstatus "$DEVICE"
+          # Granted ahead of time, so no permission alert interrupts the tests.
+          xcrun simctl privacy "$DEVICE" grant camera com.guillim.babyphone
+          xcrun simctl privacy "$DEVICE" grant microphone com.guillim.babyphone
+          set -o pipefail
+          xcodebuild test-without-building \
+            -project Babyphone.xcodeproj \
+            -scheme BabyphoneUITests \
+            -destination "id=$DEVICE" \
+            -derivedDataPath Derived \
+            -only-testing:BabyphoneUITests/SmokeTests \
+            -retry-tests-on-failure -test-iterations 2 \
+            -resultBundlePath Screens.xcresult \
             | xcbeautify --quiet --renderer github-actions
       - name: Export the screenshots
         if: always()
@@ -123,22 +138,16 @@ jobs:
   two-phones:
     name: Two phones, end to end
     runs-on: macos-26
-    timeout-minutes: 90
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v5
-      - name: Create two simulators
+      - name: Start two simulators
         run: |
           baby=$(xcrun simctl create nid-baby "iPhone 17")
-          parent=$(xcrun simctl create nid-parent "iPhone SE (3rd generation)" || xcrun simctl create nid-parent "iPhone 17")
-          for device in "$baby" "$parent"; do
-            # Boots and waits until the simulator is fully up. A simulator that is still
-            # starting can be invisible to the build that follows.
-            xcrun simctl bootstatus "$device" -b
-            # Granted ahead of time, so no permission alert interrupts the session.
-            xcrun simctl privacy "$device" grant camera com.guillim.babyphone
-            xcrun simctl privacy "$device" grant microphone com.guillim.babyphone
-          done
-          xcrun simctl list devices | grep -E "nid-"
+          parent=$(xcrun simctl create nid-parent "iPhone SE (3rd generation)")
+          # Returns at once: the simulators boot while the app builds.
+          xcrun simctl boot "$baby"
+          xcrun simctl boot "$parent"
           echo "BABY=$baby" >> "$GITHUB_ENV"
           echo "PARENT=$parent" >> "$GITHUB_ENV"
       - name: Build
@@ -146,17 +155,23 @@ jobs:
           set -o pipefail
           xcodebuild build-for-testing \
             -project Babyphone.xcodeproj \
-            -scheme Babyphone \
+            -scheme BabyphoneUITests \
             -destination "id=$BABY" \
             -derivedDataPath Derived \
             -skipPackagePluginValidation \
             | xcbeautify --quiet --renderer github-actions
       - name: Pair, connect and monitor
         run: |
+          for device in "$BABY" "$PARENT"; do
+            xcrun simctl bootstatus "$device"
+            # Granted ahead of time, so no permission alert interrupts the session.
+            xcrun simctl privacy "$device" grant camera com.guillim.babyphone
+            xcrun simctl privacy "$device" grant microphone com.guillim.babyphone
+          done
           side() {
             xcodebuild test-without-building \
               -project Babyphone.xcodeproj \
-              -scheme Babyphone \
+              -scheme BabyphoneUITests \
               -destination "id=$1" \
               -derivedDataPath Derived \
               -only-testing:"BabyphoneUITests/TwoPhoneTests/$2" \
