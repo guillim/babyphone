@@ -22,7 +22,9 @@ struct CloudKitRendezvous: RendezvousProvider {
         return configuration
     }
 
-    private func withDatabase<Result>(_ body: (CKDatabase) async throws -> Result) async throws -> Result {
+    private func withDatabase<Result: Sendable>(
+        _ body: @Sendable (CKDatabase) async throws -> Result
+    ) async throws -> Result {
         try await CKContainer.default().publicCloudDatabase.configuredWith(configuration: Self.configuration, body: body)
     }
 
@@ -35,9 +37,9 @@ struct CloudKitRendezvous: RendezvousProvider {
     }
 
     func publish(_ record: Data, to slot: RendezvousSlot) async throws {
-        let cloudRecord = CKRecord(recordType: Self.recordType, recordID: CKRecord.ID(recordName: slot.name))
-        cloudRecord[Self.payloadField] = record
         try await withDatabase { database in
+            let cloudRecord = CKRecord(recordType: Self.recordType, recordID: CKRecord.ID(recordName: slot.name))
+            cloudRecord[Self.payloadField] = record
             // `.allKeys` overwrites the previous record without fetching it first.
             let (saved, _) = try await database.modifyRecords(saving: [cloudRecord], deleting: [], savePolicy: .allKeys)
             _ = try saved[cloudRecord.recordID]?.get()

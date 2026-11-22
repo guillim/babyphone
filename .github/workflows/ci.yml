@@ -80,15 +80,6 @@ jobs:
       - name: Export the screenshots
         if: always()
         run: xcrun xcresulttool export attachments --path Screens.xcresult --output-path Screenshots
-      - name: Print small copies of the screenshots
-        if: always()
-        run: |
-          cat Screenshots/manifest.json || true
-          for file in Screenshots/*.png; do
-            small="/tmp/$(basename "$file" .png).jpg"
-            sips -Z 440 -s format jpeg -s formatOptions 50 "$file" --out "$small" >/dev/null
-            echo "SHOT $(basename "$file") $(base64 -i "$small")"
-          done
       - name: Keep the screenshots
         if: always()
         uses: actions/upload-artifact@v4
@@ -151,15 +142,6 @@ jobs:
         run: |
           xcrun xcresulttool export attachments --path Baby.xcresult --output-path Screenshots/baby || true
           xcrun xcresulttool export attachments --path Parent.xcresult --output-path Screenshots/parent || true
-      - name: Print small copies of the screenshots
-        if: always()
-        run: |
-          cat Screenshots/*/manifest.json || true
-          for file in Screenshots/*/*.png; do
-            small="/tmp/$(basename "$file" .png).jpg"
-            sips -Z 440 -s format jpeg -s formatOptions 50 "$file" --out "$small" >/dev/null
-            echo "SHOT $(basename "$file") $(base64 -i "$small")"
-          done
       - name: Keep the screenshots and logs
         if: always()
         uses: actions/upload-artifact@v4
