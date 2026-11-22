@@ -57,7 +57,9 @@ final class BabyMonitorModel: ObservableObject {
     private var noiseEvent: JournalEvent?
     private var isVideoRequested = true
     private var isParentTalking = false
+    private var isInBackground = false
     private var tasks: [Task<Void, Never>] = []
+    private var lifecycleObservers: [any NSObjectProtocol] = []
     private var dimming: Task<Void, Never>?
 
     init(key: PairingKey, database: AppDatabase, media: MediaEngine) {
@@ -118,6 +120,7 @@ final class BabyMonitorModel: ObservableObject {
 
         isMonitoring = true
         isVideoRequested = true
+        isInBackground = false
         UIApplication.shared.isIdleTimerDisabled = true
         DeviceHealth.startMonitoring()
         roomLight.begin()
@@ -154,6 +157,14 @@ final class BabyMonitorModel: ObservableObject {
                 repeat { await self?.recordHealth() } while (try? await Task.sleep(for: Self.healthInterval)) != nil
             },
         ]
+        lifecycleObservers = [
+            (UIApplication.didEnterBackgroundNotification, true),
+            (UIApplication.willEnterForegroundNotification, false),
+        ].map { name, isInBackground in
+            NotificationCenter.default.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in
+                Task { @MainActor [weak self] in self?.setInBackground(isInBackground) }
+            }
+        }
         await host.start()
     }
 
@@ -162,6 +173,8 @@ final class BabyMonitorModel: ObservableObject {
         isMonitoring = false
         tasks.forEach { $0.cancel() }
         tasks = []
+        lifecycleObservers.forEach { NotificationCenter.default.removeObserver($0) }
+        lifecycleObservers = []
         dimming?.cancel()
         network.stop()
         roomAudio.onLevel = nil
@@ -258,10 +271,21 @@ final class BabyMonitorModel: ObservableObject {
         }
     }
 
+    /// iOS cuts the camera when the phone is locked or the app leaves the screen. Sound
+    /// keeps flowing, and the parent unit is told the picture is off rather than shown a frozen one.
+    private func setInBackground(_ isInBackground: Bool) {
+        self.isInBackground = isInBackground
+        updateCamera()
+    }
+
     /// The camera only runs while a parent unit is watching: it is what heats the phone.
     private func updateCamera() {
         let isWanted: Bool
-        if case .connected = link { isWanted = isVideoRequested && isCameraAllowed } else { isWanted = false }
+        if case .connected = link {
+            isWanted = isVideoRequested && isCameraAllowed && !isInBackground
+        } else {
+            isWanted = false
+        }
         media.setVideoEnabled(isWanted)
         guard isWanted != isCameraRunning else { return }
         if isWanted {

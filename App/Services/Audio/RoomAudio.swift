@@ -17,7 +17,12 @@ final class RoomAudio: @unchecked Sendable {
     private let lock = NSLock()
     private var isRunning = false
     private var isLullabyPlaying = false
+    private var lastMeasurement = Date()
     private var observers: [any NSObjectProtocol] = []
+    private var watchdog: (any DispatchSourceTimer)?
+
+    /// Silence from the microphone tap for this long means the engine has stalled.
+    private static let stallDelay: TimeInterval = 3
 
     init() {
         lullabyBuffer = AVAudioPCMBuffer.mono(samples: ToneSynthesizer.lullaby(sampleRate: 44_100), sampleRate: 44_100)
@@ -42,9 +47,22 @@ final class RoomAudio: @unchecked Sendable {
             },
         ]
         try run()
+
+        // Another audio unit taking over the microphone can stop the tap without any
+        // notification. A monitor that has gone deaf must not stay that way.
+        let watchdog = DispatchSource.makeTimerSource(queue: .global(qos: .utility))
+        watchdog.schedule(deadline: .now() + Self.stallDelay, repeating: Self.stallDelay)
+        watchdog.setEventHandler { [weak self] in
+            guard let self, Date().timeIntervalSince(lock.withLock { lastMeasurement }) > Self.stallDelay else { return }
+            restart()
+        }
+        watchdog.resume()
+        self.watchdog = watchdog
     }
 
     func stop() {
+        watchdog?.cancel()
+        watchdog = nil
         lock.withLock {
             isRunning = false
             isLullabyPlaying = false
@@ -66,6 +84,7 @@ final class RoomAudio: @unchecked Sendable {
     }
 
     private func run() throws {
+        lock.withLock { lastMeasurement = Date() }
         let input = engine.inputNode
         let format = input.outputFormat(forBus: 0)
         guard format.sampleRate > 0, format.channelCount > 0 else { throw Failure.microphoneUnavailable }
@@ -73,7 +92,9 @@ final class RoomAudio: @unchecked Sendable {
         input.installTap(onBus: 0, bufferSize: 4096, format: format) { [weak self] buffer, _ in
             guard let samples = buffer.floatChannelData?[0] else { return }
             let level = SoundLevel.decibels(of: UnsafeBufferPointer(start: samples, count: Int(buffer.frameLength)))
-            self?.onLevel?(level)
+            guard let self else { return }
+            lock.withLock { lastMeasurement = Date() }
+            onLevel?(level)
         }
         engine.prepare()
         try engine.start()
