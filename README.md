@@ -50,7 +50,8 @@ The connection logic lives in the core package behind three small protocols (`Pe
 - **Same network.** The baby device advertises a Bonjour service. Signaling runs over TLS secured by the pairing key, so only the paired device gets through.
 - **Different networks.** The baby device writes one small record to the CloudKit public database: its current addresses, encrypted with the pairing key, under an identifier derived from that key. The parent device reads it and writes its own. Then both send to each other at the same time, which opens the firewalls on each side. Nothing else goes through CloudKit.
 - **Media.** WebRTC with an empty ICE server list: host candidates only, so no STUN lookup and no TURN relay. Media is encrypted between the two devices.
-- **No direct path.** There is no relay. The parent device shows « Connexion directe impossible ».
+- **IPv4 line at home.** The baby device asks the home router to forward one UDP port to it, with NAT-PMP or UPnP, and adds the router's public address to what it publishes. This happens on the local network only: the port stays open for an hour, is renewed while in use, and is given back when the connection ends.
+- **No direct path.** There is no relay. The parent device shows « Connexion directe impossible ». While it has no direct link, it still reads the baby device's latest alerts in iCloud, once every 20 seconds: no picture, no sound, and no guarantee, which the screen says.
 
 ## Choices made while building
 
@@ -72,10 +73,10 @@ The decision numbers (D) and proposal numbers (P) are those of version 3 of the 
 | Failure screen (D19) | Guided fixes: personal hotspot, or mobile data on both sides | `ConnectionFailedView.swift` |
 | Diagnostic view (P1) | Built: iCloud status, public IPv6, addresses, last signal, path in use, manual reconnection, export of the night log | `DiagnosticsView.swift` |
 | Wi-Fi first, remote later (P3) | Both are built. Wi-Fi works alone when iCloud is missing. | |
-| Router port opening for IPv4 (P4) | Not built. Remote use needs IPv6 on both sides. | |
-| Cry detection (P5) | Not built, as planned for V1 | |
-| Alarm volume, mute and snooze (P6) | The alarm can be silenced. Its volume follows the device's. No snooze. | |
-| Alerts-only mode through iCloud (P7) | Not built | |
+| Router port opening for IPv4 (P4) | Built, for the baby side: NAT-PMP first, then UPnP. The router is addressed directly, so the app needs no multicast permission from Apple. A router that shares its address with other customers is detected and left alone. PCP is not spoken. | `Network/PortMapping`, `RouterPortMapper.swift` |
+| Cry detection (P5) | Built on the sound classifier that ships in iOS, on the baby device. A cry starts after one second of confidence and ends after eight seconds of quiet. Each parent can choose to be alerted about crying only. That choice falls back to any noise when the baby device cannot recognise crying. | `Monitoring/CryDetector.swift`, `CryClassifier.swift` |
+| Alarm volume, mute and snooze (P6) | Three volumes, on top of the device's own. The alarm can be silenced. Noise and cry alerts can be paused for 10, 30 or 60 minutes. A lost link and a power problem always ring. | `Monitoring/AlertPolicy.swift` |
+| Alerts-only mode through iCloud (P7) | Built. The baby device writes its state and last events once a minute and at each alert, for each parent that has no direct link. The record is encrypted like the addresses. | `Alerts/` |
 | Audio clips in the journal | Not built. They were only in the mockups. | |
 | Night light | Shines from the side of the camera in use: the torch with the rear camera, the screen with the front one or on a device without a torch | `BabyMonitorModel.swift` |
 | Lullaby | Brahms' lullaby, synthesised by the app, so no audio file ships | `Audio/ToneSynthesizer.swift` |
@@ -86,6 +87,8 @@ The decision numbers (D) and proposal numbers (P) are those of version 3 of the 
 Verified by automated tests:
 
 - Pairing and its failure cases, the wire formats, noise detection, the journal and its sync, the encrypted rendezvous records.
+- When a cry starts and ends, what a pause quietens and what it never does, and the alerts left in the rendezvous provider and read back.
+- The router protocols: the exact NAT-PMP bytes, the UPnP search, description and commands, and both against a router simulated on the Mac, including a port already taken and a shared address.
 - The connection logic of both devices against each other over a simulated network: local, remote, reconnection, every failure reason.
 - The real WebRTC stack: two peer connections with an empty server list connect directly and exchange messages, including with an offer made long before its answer.
 - The real secured channel: frames cross TLS keyed by the pairing key, and a device with another key is refused.
@@ -102,6 +105,9 @@ Not verified, because it needs two real iPhones:
 - The low-light mode: how much it brightens the picture depends on each camera.
 - Peer-to-peer Wi-Fi during pairing, which simulators do not have.
 - The parent app staying alive in the background for a whole night, including after a phone call.
+- The router port on a real router. The protocols are tested against a simulated one. Real routers differ, some answer only a search sent to the whole network, which iOS allows only with a permission from Apple, and a parent on an IPv6-only mobile network cannot use an IPv4 port.
+- Cry detection on a real baby. The classifier is Apple's, and how often it is right in a real room is unknown. The thresholds in `CryDetector.swift` are starting values.
+- Alerts through iCloud on real accounts: how late they arrive, and how long iOS lets the parent app poll in the background.
 - The direct IPv6 connection through real home routers and mobile networks.
 - Sound levels. The three noise thresholds in `Sensitivity.swift` are starting values to calibrate.
 - The sound meter and the lullaby sharing the microphone and speaker with WebRTC.
@@ -110,7 +116,7 @@ Not verified, because it needs two real iPhones:
 ## Before the first real night
 
 1. **Overnight test.** Run both devices for eight hours, then once more with two parents connected. In the morning, open Réglages > Diagnostic réseau on each device and export the night log. It holds one line a minute with battery, temperature and link state. A gap in the parent's lines means iOS suspended the app. For a connection that dropped, plug the device into a Mac, open Console and filter on the subsystem `nid`: every decision about the link is traced there.
-2. **IPv6 check.** The same screen says whether the device has a public IPv6 address. Check it on your home Wi-Fi and on 4G or 5G. Remote use needs it on both sides.
+2. **IPv6 check.** The same screen says whether the device has a public IPv6 address. Check it on your home Wi-Fi and on 4G or 5G. Without it at home, run « Tester l'ouverture d'un port » on the baby device: it says whether your router can open the IPv4 path instead.
 3. **CloudKit schema.** The record type is created automatically in the Development environment on first use. Before TestFlight, deploy the schema to Production in the CloudKit Console.
 
 ## Tests

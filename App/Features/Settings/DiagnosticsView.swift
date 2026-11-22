@@ -13,6 +13,8 @@ struct DiagnosticsView: View {
     @State private var cloud: RendezvousAvailability?
     @State private var path: WebRTCSession.Path?
     @State private var healthExport: URL?
+    @State private var routerPort: PortMappingOutcome?
+    @State private var isTestingRouter = false
 
     var body: some View {
         List {
@@ -24,6 +26,22 @@ struct DiagnosticsView: View {
                 Text("diagnostics.remote")
             } footer: {
                 Text(hasGlobalIPv6 ? "diagnostics.ipv6.present" : "diagnostics.ipv6.missing")
+            }
+
+            Section {
+                if let routerPort {
+                    Text(routerText(for: routerPort))
+                        .accessibilityIdentifier("diagnostics.router.result")
+                }
+                Button("diagnostics.router.test") {
+                    Task { await testRouter() }
+                }
+                .disabled(isTestingRouter)
+                .accessibilityIdentifier("diagnostics.router.test")
+            } header: {
+                Text("diagnostics.router")
+            } footer: {
+                Text("diagnostics.router.footer")
             }
 
             if let parentModel {
@@ -72,6 +90,31 @@ struct DiagnosticsView: View {
         case .noAccount: "diagnostics.icloud.noAccount"
         case .unavailable: "diagnostics.icloud.unavailable"
         case nil: "common.unknown"
+        }
+    }
+
+    private func routerText(for outcome: PortMappingOutcome) -> LocalizedStringKey {
+        switch outcome {
+        case .mapped(let mapping): "diagnostics.router.mapped \(mapping.method.rawValue) \(mapping.externalAddress)"
+        case .noRouter: "diagnostics.router.none"
+        case .unsupported: "diagnostics.router.unsupported"
+        case .sharedAddress(let address): "diagnostics.router.shared \(address)"
+        }
+    }
+
+    /// Asks the router for a port, says what came of it, and gives the port back.
+    private func testRouter() async {
+        isTestingRouter = true
+        defer { isTestingRouter = false }
+        guard let local = InterfaceAddress.current().first(where: { $0.interface == "en0" && $0.scope == .privateNetwork }) else {
+            routerPort = .noRouter
+            return
+        }
+        let mapper = RouterPortMapper(label: AppInfo.name)
+        let outcome = await mapper.open(internalAddress: local.address, internalPort: UInt16.random(in: 50_000...59_999))
+        routerPort = outcome
+        if case .mapped(let mapping) = outcome {
+            await mapper.close(mapping)
         }
     }
 

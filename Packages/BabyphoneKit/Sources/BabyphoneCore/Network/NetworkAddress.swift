@@ -61,8 +61,12 @@ public enum SessionDescriptionInspector {
             }
     }
 
-    /// Whether `description` lists an address a phone on another network can send to.
+    /// Whether `description` lists an address a phone on another network can send to:
+    /// a public IPv6 address, or a port the router forwards from its public IPv4 address.
     public static func offersRemotePath(_ description: String) -> Bool {
-        candidateAddresses(in: description).contains { AddressScope.of($0) == .globalIPv6 }
+        candidateAddresses(in: description).contains {
+            let scope = AddressScope.of($0)
+            return scope == .globalIPv6 || scope == .publicIPv4
+        }
     }
 }

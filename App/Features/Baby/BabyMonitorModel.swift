@@ -79,6 +79,9 @@ final class BabyMonitorModel: ObservableObject {
     private let roomAudio = RoomAudio()
     private let roomLight = RoomLight()
     private let network = NetworkStatus()
+    /// Asks the home router for a port, so a parent unit away from home can reach this
+    /// device over IPv4. Shared by the connections of every parent unit.
+    private let portMapper = RouterPortMapper(label: AppInfo.name)
 
     private var detector = NoiseDetector(sensitivity: .medium)
     private var cryDetector = CryDetector()
@@ -181,7 +184,8 @@ final class BabyMonitorModel: ObservableObject {
             let host = BabyHost(
                 makeSession: parent.media.sessionFactory,
                 listener: BonjourSignalingListener(key: parent.key),
-                rendezvous: rendezvous
+                rendezvous: rendezvous,
+                portMapper: portMapper
             )
             parent.host = host
             parent.beacon = AlertBeacon(rendezvous: rendezvous)
@@ -207,8 +211,10 @@ final class BabyMonitorModel: ObservableObject {
                 },
             ]
         }
-        network.start { [hosts] in
+        network.start { [hosts, portMapper] in
             Task {
+                // Another network means another router.
+                await portMapper.networkDidChange()
                 for host in hosts { await host.networkDidChange() }
             }
         }

@@ -35,6 +35,7 @@ public actor BabyHost {
     private let makeSession: PeerSessionFactory
     private let listener: any LocalSignalingListening
     private let rendezvous: RendezvousClient?
+    private let portMapper: (any PortMapper)?
     private let timings: LinkTimings
 
     private var state = State.stopped
@@ -42,16 +43,20 @@ public actor BabyHost {
     private var tasks: [Task<Void, Never>] = []
     private var link: PeerLink?
     private var addressesChanged = false
+    /// The router port opened for each link that has one, by link.
+    private var routerPorts: [ObjectIdentifier: PortMapping] = [:]
 
     public init(
         makeSession: @escaping PeerSessionFactory,
         listener: any LocalSignalingListening,
         rendezvous: RendezvousClient?,
+        portMapper: (any PortMapper)? = nil,
         timings: LinkTimings = LinkTimings()
     ) {
         self.makeSession = makeSession
         self.listener = listener
         self.rendezvous = rendezvous
+        self.portMapper = portMapper
         self.timings = timings
         (states, stateContinuation) = AsyncStream.makeStream(of: State.self, bufferingPolicy: .bufferingNewest(8))
         (remoteAccessChanges, remoteAccessContinuation) = AsyncStream.makeStream(
@@ -77,6 +82,9 @@ public actor BabyHost {
         await link?.close()
         link = nil
         set(.stopped)
+        for link in Array(routerPorts.keys) {
+            await closeRouterPort(of: link)
+        }
         // Tells a parent unit away from home that nobody is monitoring any more.
         try? await rendezvous?.publish(EndpointAdvertisement(description: nil))
     }
@@ -161,10 +169,15 @@ public actor BabyHost {
         let link = PeerLink(session: session, route: .remote, timings: timings)
         let offerID = UUID()
         do {
-            let offer = try await session.makeOffer()
+            var offer = try await session.makeOffer()
+            // On an IPv4 line the router can forward a port to this session: one more address to offer.
+            if let port = await openRouterPort(for: offer), state != .stopped {
+                routerPorts[ObjectIdentifier(link)] = port
+                offer = SessionDescriptionInspector.adding(port, to: offer)
+            }
             try await rendezvous.publish(EndpointAdvertisement(sessionID: offerID, description: offer))
         } catch {
-            await link.close()
+            await discard(link)
             throw error
         }
         set(.ready)
@@ -173,7 +186,7 @@ public actor BabyHost {
         if await waitForAnswer(to: offerID, on: session, link: link, through: rendezvous) {
             await adopt(link)
         } else {
-            await link.close()
+            await discard(link)
         }
         // A parent unit is connected, so the offer is spent: say so rather than let it be tried again.
         // An offer that merely went stale is replaced by the next one, with no write in between.
@@ -206,6 +219,32 @@ public actor BabyHost {
         return false
     }
 
+    // MARK: Router port
+
+    private func openRouterPort(for offer: String) async -> PortMapping? {
+        guard let portMapper, let candidate = SessionDescriptionInspector.mappableCandidate(in: offer) else { return nil }
+        let outcome = await portMapper.open(internalAddress: candidate.address, internalPort: candidate.port)
+        LinkLog.note("baby unit: router port for \(candidate.address):\(candidate.port): \(outcome)")
+        guard case .mapped(let mapping) = outcome else { return nil }
+        // Opened too late, while monitoring was being stopped: give it back at once.
+        guard state != .stopped else {
+            await portMapper.close(mapping)
+            return nil
+        }
+        return mapping
+    }
+
+    private func closeRouterPort(of link: ObjectIdentifier) async {
+        guard let mapping = routerPorts.removeValue(forKey: link) else { return }
+        await portMapper?.close(mapping)
+    }
+
+    /// Closes a link that never carried anything, and gives back its router port.
+    private func discard(_ link: PeerLink) async {
+        await link.close()
+        await closeRouterPort(of: ObjectIdentifier(link))
+    }
+
     // MARK: Active link
 
     private func adopt(_ newLink: PeerLink) async {
@@ -228,6 +267,7 @@ public actor BabyHost {
             payloadContinuation.yield(payload)
         }
         _ = await activeLink.waitUntilEnded()
+        await closeRouterPort(of: ObjectIdentifier(activeLink))
         if link === activeLink {
             link = nil
             if state != .stopped { set(.waiting) }

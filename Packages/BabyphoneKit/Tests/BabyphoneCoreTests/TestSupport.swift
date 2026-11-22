@@ -89,6 +89,8 @@ final class FakeNetwork: @unchecked Sendable {
     private let sessions = Locked([String: FakeSession]())
     private let reachable = Locked(true)
     let createdSessions = Locked(0)
+    /// Candidate lines added to every offer, as a real session lists its addresses.
+    let offerCandidates = Locked("")
 
     /// When false, new sessions never connect and connected ones stop delivering.
     var isReachable: Bool {
@@ -127,7 +129,7 @@ final class FakeSession: PeerSession, @unchecked Sendable {
 
     var isClosed: Bool { closed.current }
 
-    func makeOffer() async throws -> String { "offer:\(id)" }
+    func makeOffer() async throws -> String { "offer:\(id)" + network.offerCandidates.current }
 
     func makeAnswer(to offer: String) async throws -> String {
         guard offer.hasPrefix("offer:") else { throw Failure.malformedDescription }

@@ -919,6 +919,125 @@
         }
       }
     },
+    "diagnostics.router" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Router port (IPv4)"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Port du routeur (IPv4)"
+          }
+        }
+      }
+    },
+    "diagnostics.router.footer" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "On a line without IPv6, the device in the baby's room asks the home router to open a port (UPnP or NAT-PMP), so it can still be reached away from home. Run this test on the device in the baby's room, on Wi-Fi."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sur une ligne sans IPv6, l'appareil côté bébé demande au routeur de la maison de lui ouvrir un port (UPnP ou NAT-PMP), pour rester joignable hors de la maison. Ce test se fait sur l'appareil côté bébé, en Wi-Fi."
+          }
+        }
+      }
+    },
+    "diagnostics.router.mapped %@ %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The router opens a port (%@). Public address: %@."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le routeur ouvre un port (%@). Adresse publique : %@."
+          }
+        }
+      }
+    },
+    "diagnostics.router.none" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This device is not on Wi-Fi: there is no router to ask."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cet appareil n'est pas en Wi-Fi : pas de routeur à interroger."
+          }
+        }
+      }
+    },
+    "diagnostics.router.shared %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The router has no public address (%@): the operator shares it, or a second router sits in front. A port opened here leads nowhere."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le routeur n'a pas d'adresse publique (%@) : l'opérateur la partage, ou un second routeur est placé devant. Un port ouvert ici ne mène nulle part."
+          }
+        }
+      }
+    },
+    "diagnostics.router.test" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Test opening a port"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tester l'ouverture d'un port"
+          }
+        }
+      }
+    },
+    "diagnostics.router.unsupported" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The router does not open ports: UPnP and NAT-PMP are missing or turned off."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le routeur n'ouvre pas de port : UPnP et NAT-PMP sont absents ou désactivés."
+          }
+        }
+      }
+    },
     "diagnostics.title" : {
       "extractionState" : "manual",
       "localizations" : {
