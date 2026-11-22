@@ -69,7 +69,8 @@ jobs:
         run: cat Babyphone.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved
 
   # The jobs below run the app in simulators. They build first and boot afterwards:
-  # a simulator that is starting up slows a build several times over.
+  # a simulator that is starting up slows a build several times over. They do not
+  # wait for the boot to finish either: the tests wait for as much of it as they need.
   screens:
     name: Screens (${{ matrix.device }})
     runs-on: macos-26
@@ -100,10 +101,8 @@ jobs:
           else
             device=$(xcrun simctl create nid-screens "iPhone SE (3rd generation)")
           fi
-          xcrun simctl bootstatus "$device" -b
-          # Granted ahead of time, so no permission alert interrupts the tests.
-          xcrun simctl privacy "$device" grant camera com.guillim.babyphone
-          xcrun simctl privacy "$device" grant microphone com.guillim.babyphone
+          # Permissions are granted ahead of time, so no alert interrupts the tests.
+          Scripts/start-simulator.sh "$device"
           echo "DEVICE=$device" >> "$GITHUB_ENV"
       - name: Walk the screens
         run: |
@@ -157,14 +156,9 @@ jobs:
         run: |
           baby=$(xcrun simctl create nid-baby "iPhone 17")
           parent=$(xcrun simctl create nid-parent "iPhone SE (3rd generation)")
-          # Both boot at the same time.
-          xcrun simctl bootstatus "$baby" -b & xcrun simctl bootstatus "$parent" -b & wait
-          for device in "$baby" "$parent"; do
-            # Granted ahead of time, so no permission alert interrupts the session.
-            xcrun simctl privacy "$device" grant camera com.guillim.babyphone
-            xcrun simctl privacy "$device" grant microphone com.guillim.babyphone
-          done
-          xcrun simctl install "$baby" Derived/Build/Products/Debug-iphonesimulator/Babyphone.app
+          # Permissions are granted ahead of time, so no alert interrupts the session.
+          Scripts/start-simulator.sh "$baby"
+          Scripts/start-simulator.sh "$parent"
           echo "BABY=$baby" >> "$GITHUB_ENV"
           echo "PARENT=$parent" >> "$GITHUB_ENV"
       - name: Pair, connect and monitor
@@ -174,9 +168,17 @@ jobs:
             folder="$RUNNER_TEMP/session-$1"
             mkdir -p "$folder"
             xcrun simctl terminate "$BABY" com.guillim.babyphone 2>/dev/null || true
-            SIMCTL_CHILD_NID_UI_TEST_STATE=baby SIMCTL_CHILD_NID_TEST_SHARED_DIR="$folder" \
-              xcrun simctl launch "$BABY" com.guillim.babyphone -AppleLanguages "(fr)" -AppleLocale fr_FR
-            # The test drives the parent unit in the other simulator.
+            # Installed and launched in the background, retried until the simulator is far enough into its boot.
+            (
+              for attempt in $(seq 1 90); do
+                xcrun simctl install "$BABY" Derived/Build/Products/Debug-iphonesimulator/Babyphone.app 2>/dev/null \
+                  && SIMCTL_CHILD_NID_UI_TEST_STATE=baby SIMCTL_CHILD_NID_TEST_SHARED_DIR="$folder" \
+                    xcrun simctl launch "$BABY" com.guillim.babyphone -AppleLanguages "(fr)" -AppleLocale fr_FR \
+                  && break
+                sleep 2
+              done
+            ) &
+            # Meanwhile the test starts driving the parent unit in the other simulator.
             TEST_RUNNER_NID_SHARED_DIR="$folder" xcodebuild test-without-building \
               -project Babyphone.xcodeproj \
               -scheme BabyphoneUITests \
@@ -185,6 +187,7 @@ jobs:
               -only-testing:BabyphoneUITests/TwoDeviceTests \
               -resultBundlePath "Parent-$1.xcresult" > "Parent-$1.log" 2>&1
             status=$?
+            wait
             grep -hE "error|XCTAssert|failed|passed|Executed" "Parent-$1.log" | cut -c1-300 || true
             ls "$folder"
             xcrun simctl io "$BABY" screenshot "Baby-$1.png" || true
