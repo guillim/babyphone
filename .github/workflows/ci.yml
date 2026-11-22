@@ -99,14 +99,19 @@ jobs:
   two-phones:
     name: Two phones, end to end
     runs-on: macos-26
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v5
       - name: Create two simulators
         run: |
           baby=$(xcrun simctl create nid-baby "iPhone 17")
           parent=$(xcrun simctl create nid-parent "iPhone SE (3rd generation)" || xcrun simctl create nid-parent "iPhone 17")
-          xcrun simctl boot "$baby"
-          xcrun simctl boot "$parent"
+          for device in "$baby" "$parent"; do
+            xcrun simctl boot "$device"
+            # Granted ahead of time, so no permission alert interrupts the session.
+            xcrun simctl privacy "$device" grant camera com.guillim.babyphone
+            xcrun simctl privacy "$device" grant microphone com.guillim.babyphone
+          done
           xcrun simctl list devices | grep -E "nid-"
           echo "BABY=$baby" >> "$GITHUB_ENV"
           echo "PARENT=$parent" >> "$GITHUB_ENV"
@@ -139,7 +144,7 @@ jobs:
           status=0
           wait $baby || status=1
           wait $parent || status=1
-          grep -hE "error:|XCTAssert|failed|passed|Executed" Baby.log Parent.log || true
+          grep -hE "error:|XCTAssert|failed|passed|Executed" Baby.log Parent.log | cut -c1-300 || true
           exit $status
       - name: Export the screenshots
         if: always()

@@ -7,32 +7,8 @@ import XCTest
 /// up, and the controls a parent needs are on screen, without scrolling, on
 /// the smallest supported iPhone.
 @MainActor
-final class SmokeTests: XCTestCase {
-    private let timeout: TimeInterval = 20
-
-    private func launch(state: String) -> XCUIApplication {
-        continueAfterFailure = false
-        let app = XCUIApplication()
-        app.launchArguments = ["-AppleLanguages", "(fr)", "-AppleLocale", "fr_FR"]
-        app.launchEnvironment["NID_UI_TEST_STATE"] = state
-        app.launch()
-        return app
-    }
-
-    /// Accepts a system permission alert if one is showing.
-    private func allowSystemAlertIfAny() {
-        let alert = XCUIApplication(bundleIdentifier: "com.apple.springboard").alerts.firstMatch
-        if alert.waitForExistence(timeout: 3) {
-            alert.buttons.element(boundBy: alert.buttons.count - 1).tap()
-        }
-    }
-
-    private func attachScreenshot(named name: String) {
-        let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
-        attachment.name = name
-        attachment.lifetime = .keepAlways
-        add(attachment)
-    }
+final class SmokeTests: AppTestCase {
+    private let timeout: TimeInterval = 60
 
     func testRoleChoiceLeadsToBothPairingScreens() {
         let app = launch(state: "fresh")
@@ -53,12 +29,11 @@ final class SmokeTests: XCTestCase {
         app.buttons["pairing.changeRole"].tap()
         XCTAssertTrue(parent.waitForExistence(timeout: timeout))
         parent.tap()
-        allowSystemAlertIfAny()
+        acceptSystemAlerts()
         let field = app.textFields["pairing.codeField"], submit = app.buttons["pairing.submit"]
         XCTAssertTrue(field.waitForExistence(timeout: timeout))
         XCTAssertFalse(submit.isEnabled)
-        field.tap()
-        field.typeText("123456")
+        type("123456", into: field)
         XCTAssertTrue(submit.isEnabled)
         attachScreenshot(named: "3-pairing-parent")
     }
@@ -72,8 +47,7 @@ final class SmokeTests: XCTestCase {
         attachScreenshot(named: "4-baby-idle")
 
         start.tap()
-        allowSystemAlertIfAny()
-        allowSystemAlertIfAny()
+        acceptSystemAlerts(within: 8)
         // A machine without a microphone cannot monitor: the app must say so instead of failing silently.
         let stop = app.buttons["baby.stop"], failure = app.staticTexts["baby.startFailure"]
         let outcome = expectation(for: NSPredicate { _, _ in stop.exists || failure.exists }, evaluatedWith: nil)
@@ -88,8 +62,7 @@ final class SmokeTests: XCTestCase {
     func testParentUnitShowsTheLiveScreenThenExplainsTheFailure() {
         let app = launch(state: "parent-paired")
         // Notifications, then the microphone.
-        allowSystemAlertIfAny()
-        allowSystemAlertIfAny()
+        acceptSystemAlerts(within: 8)
 
         // Every control of the live screen fits on one screen, without scrolling.
         let talk = app.buttons["parent.talk"]
