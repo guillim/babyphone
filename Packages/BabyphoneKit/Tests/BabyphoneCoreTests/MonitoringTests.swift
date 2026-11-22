@@ -3,7 +3,7 @@ import Testing
 import TestSupport
 @testable import BabyphoneCore
 
-@Suite struct MonitoringTests {
+@Suite(.timeLimit(.minutes(1))) struct MonitoringTests {
     private let start = Date(timeIntervalSince1970: 1_800_000_000)
     private let quiet = -50.0
     private let loud = -20.0

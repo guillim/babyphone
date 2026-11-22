@@ -1,16 +1,17 @@
 name: Simulators
 
 # Runs the app itself, in simulators. A build machine needs several minutes to
-# start a simulator from cold, so these checks take ten minutes or more. They
-# run beside the CI workflow and do not hold it back.
+# start one simulator from cold and much longer for two, so these checks take
+# between ten and twenty-five minutes. They are kept out of the CI workflow,
+# which answers in five: they run every night, on demand from the Actions tab,
+# and when the tests they run are changed.
 on:
+  schedule:
+    - cron: "17 3 * * *"
   push:
     paths:
-      - "App/**"
       - "UITests/**"
-      - "Packages/**"
-      - "Config/**"
-      - "Babyphone.xcodeproj/**"
+      - "App/TestHarness.swift"
       - "Scripts/start-simulator.sh"
       - ".github/workflows/simulators.yml"
   workflow_dispatch:
@@ -80,7 +81,7 @@ jobs:
   two-devices:
     name: Two devices, end to end
     runs-on: macos-26
-    timeout-minutes: 25
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v5
       - name: Build
@@ -106,22 +107,30 @@ jobs:
           wait
       - name: Pair, connect and monitor
         run: |
+          app=Derived/Build/Products/Debug-iphonesimulator/Babyphone.app
           session() {
             # The baby unit runs by itself and tells the test what happens through this folder.
             folder="$RUNNER_TEMP/session-$1"
             mkdir -p "$folder"
             xcrun simctl terminate "$BABY" com.guillim.babyphone 2>/dev/null || true
-            # Installed and launched in the background, retried until the simulator is far enough into its boot.
-            (
-              for attempt in $(seq 1 90); do
-                xcrun simctl install "$BABY" Derived/Build/Products/Debug-iphonesimulator/Babyphone.app 2>/dev/null \
-                  && SIMCTL_CHILD_NID_UI_TEST_STATE=baby SIMCTL_CHILD_NID_TEST_SHARED_DIR="$folder" \
-                    xcrun simctl launch "$BABY" com.guillim.babyphone -AppleLanguages "(fr)" -AppleLocale fr_FR \
-                  && break
-                sleep 2
-              done
-            ) &
-            # Meanwhile the test starts driving the parent unit in the other simulator.
+            # The baby unit first. Its simulator may still be starting: install and launch are
+            # retried until it accepts them, and the app shows its pairing code.
+            for attempt in $(seq 1 200); do
+              xcrun simctl install "$BABY" "$app" 2>/dev/null \
+                && SIMCTL_CHILD_NID_UI_TEST_STATE=baby SIMCTL_CHILD_NID_TEST_SHARED_DIR="$folder" \
+                  xcrun simctl launch "$BABY" com.guillim.babyphone -AppleLanguages "(fr)" -AppleLocale fr_FR \
+                && break
+              sleep 3
+            done
+            for attempt in $(seq 1 60); do
+              [ -f "$folder/code" ] && break
+              sleep 2
+            done
+            if [ ! -f "$folder/code" ]; then
+              echo "The baby unit did not start."
+              return 1
+            fi
+            # Then the test drives the parent unit in the other simulator.
             TEST_RUNNER_NID_SHARED_DIR="$folder" xcodebuild test-without-building \
               -project Babyphone.xcodeproj \
               -scheme BabyphoneUITests \
@@ -130,7 +139,6 @@ jobs:
               -only-testing:BabyphoneUITests/TwoDeviceTests \
               -resultBundlePath "Parent-$1.xcresult" > "Parent-$1.log" 2>&1
             status=$?
-            wait
             grep -hE "error|XCTAssert|failed|passed|Executed" "Parent-$1.log" | cut -c1-300 || true
             ls "$folder"
             return $status

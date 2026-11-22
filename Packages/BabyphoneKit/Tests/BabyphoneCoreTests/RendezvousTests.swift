@@ -3,7 +3,7 @@ import Testing
 import TestSupport
 @testable import BabyphoneCore
 
-@Suite struct RendezvousTests {
+@Suite(.timeLimit(.minutes(1))) struct RendezvousTests {
     private let provider = MemoryRendezvous()
     private let key = PairingKey.random()
 

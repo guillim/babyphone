@@ -10,7 +10,7 @@ import XCTest
 final class TwoDeviceTests: AppTestCase {
     /// How long to wait for something on this screen.
     private let step: TimeInterval = 60
-    /// How long to wait for the baby unit, which starts at the same time as this test.
+    /// How long to wait for the baby unit, which runs on a simulator that may still be busy starting.
     private let handover: TimeInterval = 150
 
     private func sharedFolder() throws -> URL {

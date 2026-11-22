@@ -3,7 +3,7 @@ import Testing
 import TestSupport
 @testable import BabyphoneCore
 
-@Suite struct StorageTests {
+@Suite(.timeLimit(.minutes(1))) struct StorageTests {
     @Test func revisionsRiseWithEveryChange() async throws {
         let journal = JournalStore(database: try .inMemory(), role: .baby)
         let started = try await journal.record(.monitoringStarted)

@@ -124,11 +124,11 @@ On Linux the first command runs the core tests only. In Xcode, ⌘U runs everyth
 
 No test waits without a limit. Every wait in the test helpers has a deadline, and `Scripts/test-with-watchdog.sh` stops a run that goes silent and prints where each thread is stuck.
 
-Two workflows run on GitHub at every push:
+Two workflows run on GitHub:
 
-| Workflow | Checks | Duration |
-| --- | --- | --- |
-| `CI` | Core tests on Linux, strings, then on the oldest and newest Xcode: all package tests, the transport tests five more times, and the app build | About 5 minutes |
-| `Simulators` | The walk through the screens on an iPhone SE and an iPad, and the two-device session | 10 to 15 minutes, most of it spent starting simulators |
+| Workflow | When | Checks | Duration |
+| --- | --- | --- | --- |
+| `CI` | Every push | Core tests on Linux, strings, then on the oldest and newest Xcode: all package tests, the transport tests five more times, and the app build | About 5 minutes |
+| `Simulators` | Every night, on demand, and when the UI tests change | The walk through the screens on an iPhone SE and an iPad, and the two-device session | 10 to 25 minutes, nearly all of it spent starting simulators |
 
-`CI` is the gate. `Simulators` runs beside it when the app, its tests or the package change.
+`CI` is the gate. To run `Simulators` on a commit, open the Actions tab, choose the workflow and press « Run workflow ».

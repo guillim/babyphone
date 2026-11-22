@@ -3,7 +3,7 @@ import Testing
 import TestSupport
 @testable import BabyphoneCore
 
-@Suite struct WireTests {
+@Suite(.timeLimit(.minutes(1))) struct WireTests {
     @Test func decoderReassemblesFramesSplitAcrossChunks() throws {
         let first = Data("hello".utf8), second = Data(), third = Data(repeating: 9, count: 3000)
         var stream = Data()
