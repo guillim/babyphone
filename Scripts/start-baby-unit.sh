@@ -30,8 +30,8 @@ within() {
 
 mkdir -p "$folder"
 # What the app reads at launch: its role, and where to report.
-export SIMCTL_CHILD_NID_UI_TEST_STATE=baby
-export SIMCTL_CHILD_NID_TEST_SHARED_DIR="$folder"
+export SIMCTL_CHILD_NUZZLECAM_UI_TEST_STATE=baby
+export SIMCTL_CHILD_NUZZLECAM_TEST_SHARED_DIR="$folder"
 for round in 1 2 3 4 5; do
   within 30 xcrun simctl terminate "$device" "$bundle" 2> /dev/null || true
   if within 180 xcrun simctl install "$device" "$app" \

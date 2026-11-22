@@ -135,7 +135,7 @@ jobs:
             # The test drives the parent unit, and follows the baby unit through the session folder.
             folder="$RUNNER_TEMP/session-$1"
             status=0
-            TEST_RUNNER_NID_SHARED_DIR="$folder" xcodebuild test-without-building \
+            TEST_RUNNER_NUZZLECAM_SHARED_DIR="$folder" xcodebuild test-without-building \
               -project Babyphone.xcodeproj \
               -scheme BabyphoneUITests \
               -destination "id=$PARENT" \
@@ -144,6 +144,8 @@ jobs:
               -resultBundlePath "Parent-$1.xcresult" > "Parent-$1.log" 2>&1 || status=$?
             grep -hE "error|XCTAssert|failed|passed|Executed" "Parent-$1.log" | cut -c1-300 || true
             ls "$folder"
+            # A test that was skipped also ends well. Only the baby unit's last word says the session ran.
+            [ -f "$folder/baby-stopped" ] || status=1
             return $status
           }
           # A build machine sometimes fails to start a simulator's test runner.
