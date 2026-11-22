@@ -15,7 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     container: swift:6.1
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Install SQLite headers
         run: apt-get update && apt-get install -y libsqlite3-dev
       - name: Test
@@ -25,7 +25,7 @@ jobs:
     name: French and English strings
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - run: python3 Scripts/localizations.py
 
   app:
@@ -37,7 +37,7 @@ jobs:
         # The oldest and the newest Xcode the project supports.
         os: [macos-15, macos-26]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Show Xcode version
         run: xcodebuild -version
       - name: Test core logic
@@ -51,6 +51,6 @@ jobs:
             -destination 'generic/platform=iOS Simulator' \
             -skipPackagePluginValidation \
             CODE_SIGNING_ALLOWED=NO \
-            | xcbeautify --renderer github-actions
+            | xcbeautify --quiet --renderer github-actions
       - name: Show resolved package versions
         run: cat Babyphone.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved
