@@ -100,7 +100,9 @@ jobs:
           baby=$(xcrun simctl create nid-baby "iPhone 17")
           parent=$(xcrun simctl create nid-parent "iPhone SE (3rd generation)" || xcrun simctl create nid-parent "iPhone 17")
           for device in "$baby" "$parent"; do
-            xcrun simctl boot "$device"
+            # Boots and waits until the simulator is fully up. A simulator that is still
+            # starting can be invisible to the build that follows.
+            xcrun simctl bootstatus "$device" -b
             # Granted ahead of time, so no permission alert interrupts the session.
             xcrun simctl privacy "$device" grant camera com.guillim.babyphone
             xcrun simctl privacy "$device" grant microphone com.guillim.babyphone
