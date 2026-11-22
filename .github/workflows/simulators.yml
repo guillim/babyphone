@@ -90,7 +90,7 @@ jobs:
   two-devices:
     name: Two devices, end to end
     runs-on: macos-26
-    timeout-minutes: 30
+    timeout-minutes: 40
     env:
       APP: Derived/Build/Products/Debug-iphonesimulator/Babyphone.app
     steps:
@@ -107,19 +107,21 @@ jobs:
             ARCHS=arm64 ONLY_ACTIVE_ARCH=NO \
             | xcbeautify --quiet --renderer github-actions
       # One simulator at a time. Two that start together starve a build machine,
-      # and the pair then needs a quarter of an hour or more.
+      # and the pair then needs a quarter of an hour or more. Both are the smallest
+      # iPhone, which is also the lightest to run. Neither start waits for the end
+      # of the boot: the next step checks by itself that each app is up.
       - name: Start the baby unit
         run: |
-          baby=$(xcrun simctl create nid-baby "iPhone 17")
+          baby=$(xcrun simctl create nid-baby "iPhone SE (3rd generation)")
           echo "BABY=$baby" >> "$GITHUB_ENV"
           # Permissions are granted ahead of time, so no alert interrupts the session.
-          Scripts/start-simulator.sh "$baby"
+          Scripts/start-simulator.sh "$baby" --no-wait
           Scripts/start-baby-unit.sh "$baby" "$APP" "$RUNNER_TEMP/session-1"
       - name: Start the parent unit's simulator
         run: |
           parent=$(xcrun simctl create nid-parent "iPhone SE (3rd generation)")
           echo "PARENT=$parent" >> "$GITHUB_ENV"
-          Scripts/start-simulator.sh "$parent"
+          Scripts/start-simulator.sh "$parent" --no-wait
       - name: Pair, connect and monitor
         run: |
           session() {
