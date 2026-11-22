@@ -192,8 +192,10 @@ import Testing
         for host in hosts { await host.start() }
         for connector in connectors { await connector.start() }
 
-        for connector in connectors {
+        for (host, connector) in zip(hosts, connectors) {
+            async let babyConnected = waitFor(host.states) { $0 == .connected(.local) }
             #expect(await waitFor(connector.states) { $0 == .connected(.local) })
+            #expect(await babyConnected)
         }
         // Both are served at once, each over its own connection.
         for (index, host) in hosts.enumerated() {

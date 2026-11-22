@@ -30,10 +30,15 @@ public final class WebRTCSession: NSObject, PeerSession, @unchecked Sendable {
 
     private let connection: RTCPeerConnection
     private let eventContinuation: AsyncStream<PeerSessionEvent>.Continuation
-    /// Guards the state below. WebRTC calls back on its own threads while holding its
-    /// own locks, and most of its API waits on those threads. So nothing may call into
-    /// WebRTC while holding this lock: two threads would wait on each other for ever.
-    /// The state is therefore a copy of what the callbacks reported, never a live query.
+    /// WebRTC calls back on its own network and signaling threads, and most of its API
+    /// waits on one of those threads. Two rules keep them from waiting on each other for ever:
+    ///
+    /// - A callback never calls into WebRTC. Asking a data channel for its state from the
+    ///   network thread waits for the signaling thread, which may itself be closing the
+    ///   connection and waiting for the network thread. Such work moves to `callbackQueue`.
+    /// - Nothing calls into WebRTC while holding `lock`. The state it guards is a copy of
+    ///   what the callbacks reported, never a live query.
+    private let callbackQueue = DispatchQueue(label: "nid.webrtc-session")
     private let lock = NSLock()
     private var dataChannel: RTCDataChannel?
     private var talkBackSender: RTCRtpSender?
@@ -310,7 +315,9 @@ extension WebRTCSession: RTCPeerConnectionDelegate {
     }
 
     public func peerConnection(_ peerConnection: RTCPeerConnection, didOpen dataChannel: RTCDataChannel) {
-        adopt(dataChannel)
+        callbackQueue.async { [weak self] in
+            self?.adopt(dataChannel)
+        }
     }
 
     public func peerConnection(_ peerConnection: RTCPeerConnection, didChange stateChanged: RTCSignalingState) {}
@@ -323,7 +330,9 @@ extension WebRTCSession: RTCPeerConnectionDelegate {
 
 extension WebRTCSession: RTCDataChannelDelegate {
     public func dataChannelDidChangeState(_ dataChannel: RTCDataChannel) {
-        channelStateDidChange(dataChannel)
+        callbackQueue.async { [weak self] in
+            self?.channelStateDidChange(dataChannel)
+        }
     }
 
     public func dataChannel(_ dataChannel: RTCDataChannel, didReceiveMessageWith buffer: RTCDataBuffer) {
