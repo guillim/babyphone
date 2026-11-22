@@ -80,12 +80,11 @@ jobs:
       - name: Create the simulator
         run: |
           if [ "${{ matrix.device }}" = "iPad" ]; then
-            # iPad model names change with every Xcode: take the newest one this Xcode knows.
-            type=$(xcrun simctl list devicetypes | grep -oE 'com\.apple\.CoreSimulator\.SimDeviceType\.iPad[^)]*' | tail -1)
+            # iPad model names change with every Xcode: take one this Xcode already set up.
+            device=$(xcrun simctl list devices available | grep -E '^ +iPad' | head -1 | grep -oE '[0-9A-F-]{36}')
           else
-            type="iPhone SE (3rd generation)"
+            device=$(xcrun simctl create nid-screens "iPhone SE (3rd generation)")
           fi
-          device=$(xcrun simctl create nid-screens "$type" || xcrun simctl create nid-screens "iPhone 17")
           # Boots and waits until the simulator is fully up, so the tests do not time out on a cold start.
           xcrun simctl bootstatus "$device" -b
           xcrun simctl list devices | grep "$device"
