@@ -93,7 +93,7 @@ final class TwoDeviceTests: AppTestCase {
             "The baby unit's journal did not arrive"
         )
         attachScreenshot(named: "parent-journal")
-        app.navigationBars.buttons.firstMatch.tap()
+        goBack(in: app, to: app.buttons["parent.journal"])
 
         // The baby unit stops on purpose: this unit says so, and raises no alarm.
         try "done".write(to: folder.appendingPathComponent("parent-done"), atomically: true, encoding: .utf8)

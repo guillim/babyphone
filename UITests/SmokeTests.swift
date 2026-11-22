@@ -84,9 +84,10 @@ final class SmokeTests: AppTestCase {
         XCTAssertTrue(app.otherElements["journal.sensitivity"].waitForExistence(timeout: timeout)
             || app.segmentedControls["journal.sensitivity"].waitForExistence(timeout: 2))
         attachScreenshot(named: "8-journal")
-        app.navigationBars.buttons.firstMatch.tap()
+        let settings = app.buttons["parent.settings"]
+        goBack(in: app, to: settings)
 
-        app.buttons["parent.settings"].tap()
+        settings.tap()
         let diagnostics = app.buttons["settings.diagnostics"]
         XCTAssertTrue(diagnostics.waitForExistence(timeout: timeout))
         attachScreenshot(named: "9-settings")
