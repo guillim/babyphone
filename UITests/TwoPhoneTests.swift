@@ -89,6 +89,11 @@ final class TwoPhoneTests: AppTestCase {
         XCTAssertTrue(live.waitForExistence(timeout: handover), "The live link never came up")
         attachScreenshot(named: "parent-live")
 
+        // Every control a parent needs is on screen without scrolling, on the smallest iPhone.
+        for control in ["parent.talk", "parent.nightLight", "parent.lullaby", "parent.settings", "parent.journal"] {
+            XCTAssertTrue(app.buttons[control].isHittable, "\(control) is not reachable")
+        }
+
         // Commands travel to the baby unit, and its new state travels back.
         let nightLight = app.buttons["parent.nightLight"], lullaby = app.buttons["parent.lullaby"]
         XCTAssertFalse(nightLight.isSelected)

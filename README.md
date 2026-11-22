@@ -18,7 +18,7 @@ Xcode creates the iCloud container `iCloud.<bundle identifier>` the first time i
 ## Use it
 
 1. On each phone, pick a side: « Côté bébé » or « Côté parent ».
-2. Pair them once, side by side: the parent phone scans the QR code shown on the baby phone, or you type its six digits.
+2. Pair them once, side by side: the parent phone scans the QR code shown on the baby phone, or you type its six digits. Pairing starts on the sixth digit.
 3. On the baby phone, tap « Démarrer la surveillance ». The parent phone connects by itself.
 
 At home the phones find each other over Wi-Fi with Bonjour. This needs neither internet nor iCloud. Away from home they find each other through iCloud, then connect directly over IPv6.
@@ -33,7 +33,7 @@ At home the phones find each other over Wi-Fi with Bonjour. This needs neither i
 | `App/Features` | One folder per screen, each with a SwiftUI view and its model. |
 | `App/DesignSystem` | Colours, type and shared components. |
 | `App/Resources` | Icon, colours, French and English strings. |
-| `UITests` | Launches the app in a simulator on the smallest supported iPhone and walks every screen. |
+| `UITests` | Launches the app in a simulator on the smallest supported iPhone and walks every screen. Also runs both sides in two simulators through a whole session. |
 | `Config` | Bundle identifier, versions, Info.plist, entitlements. |
 
 The connection logic lives in the core package behind three small protocols (`PeerSession`, `LocalSignalingListening` and `LocalSignalingConnecting`, `RendezvousProvider`). The tests run both phones' logic against each other over a simulated network.
@@ -80,13 +80,14 @@ Verified by automated tests:
 - Both phones end to end over real TLS and real WebRTC, on the local path and through the rendezvous.
 
 - The app itself in a simulator: it starts, every screen appears, and the parent's controls fit an iPhone SE without scrolling.
+- The two apps together, in two simulators: pairing with the six-digit code, discovery and connection over the local network, night light and lullaby commands over the live link, the journal sync, and a deliberate stop.
 
 The whole app compiles in CI with the oldest and the newest supported Xcode.
 
 Not verified, because it needs two real iPhones:
 
 - Everything that touches hardware or an account: camera, microphone, speaker, torch, CloudKit.
-- Bonjour discovery. Its tests exist and run on a Mac, but not in CI, where the local network is not available.
+- Peer-to-peer Wi-Fi during pairing, which simulators do not have.
 - The parent app staying alive in the background for a whole night, including after a phone call.
 - The direct IPv6 connection through real home routers and mobile networks.
 - Sound levels. The three noise thresholds in `Sensitivity.swift` are starting values to calibrate.
