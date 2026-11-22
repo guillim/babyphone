@@ -13,13 +13,15 @@ You need Xcode 16 or later, two iPhones on iOS 16 or later, and a paid Apple Dev
 3. Open `Babyphone.xcodeproj`. Xcode fetches the two dependencies (WebRTC and GRDB) on first open.
 4. Select the `Babyphone` scheme, choose an iPhone, and run. Do the same on the second iPhone.
 
-Xcode creates the iCloud container `iCloud.<bundle identifier>` the first time it signs the app. The camera, the microphone and Bonjour do not work in the simulator, so the simulator only shows the screens.
+Xcode creates the iCloud container `iCloud.<bundle identifier>` the first time it signs the app. Simulators have no camera: two of them can pair and connect, with sound only and no picture.
 
 ## Use it
 
 1. On each phone, pick a side: « Côté bébé » or « Côté parent ».
 2. Pair them once, side by side: the parent phone scans the QR code shown on the baby phone, or you type its six digits. Pairing starts on the sixth digit.
 3. On the baby phone, tap « Démarrer la surveillance ». The parent phone connects by itself.
+
+Leave the baby phone plugged in and unlocked. Its screen dims by itself. If you lock it, iOS cuts the camera: the sound continues and the parent phone shows that the picture is off.
 
 At home the phones find each other over Wi-Fi with Bonjour. This needs neither internet nor iCloud. Away from home they find each other through iCloud, then connect directly over IPv6.
 
@@ -78,9 +80,8 @@ Verified by automated tests:
 - The real WebRTC stack: two peer connections with an empty server list connect directly and exchange messages, including with an offer made long before its answer.
 - The real secured channel: frames cross TLS keyed by the pairing key, and a phone with another key is refused.
 - Both phones end to end over real TLS and real WebRTC, on the local path and through the rendezvous.
-
 - The app itself in a simulator: it starts, every screen appears, and the parent's controls fit an iPhone SE without scrolling.
-- The two apps together, in two simulators: pairing with the six-digit code, discovery and connection over the local network, night light and lullaby commands over the live link, the journal sync, and a deliberate stop.
+- The two apps together, in two simulators: pairing with the six-digit code, Bonjour discovery and connection over the local network, night light and lullaby commands over the live link, the journal sync, and a deliberate stop.
 
 The whole app compiles in CI with the oldest and the newest supported Xcode.
 

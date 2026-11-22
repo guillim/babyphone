@@ -3,6 +3,8 @@ name: CI
 # Every push is checked, whichever branch it lands on.
 on:
   push:
+    paths-ignore:
+      - "**.md"
   workflow_dispatch:
 
 # Each commit keeps its own result: a later push does not cancel the checks of an earlier one.
