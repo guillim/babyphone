@@ -1,5 +1,6 @@
 @preconcurrency import AVFoundation
 import BabyphoneCore
+import BabyphoneTransport
 import UIKit
 
 /// The baby unit: listens to the room, hosts the parent unit's connection and keeps the journal.

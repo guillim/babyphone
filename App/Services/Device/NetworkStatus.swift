@@ -73,7 +73,7 @@ struct InterfaceAddress: Identifiable, Equatable {
             var host = [CChar](repeating: 0, count: Int(NI_MAXHOST))
             let length = socklen_t(family == AF_INET ? MemoryLayout<sockaddr_in>.size : MemoryLayout<sockaddr_in6>.size)
             guard getnameinfo(socketAddress, length, &host, socklen_t(host.count), nil, 0, NI_NUMERICHOST) == 0 else { continue }
-            let address = String(cString: host)
+            let address = String(decoding: host.prefix { $0 != 0 }.map { UInt8(bitPattern: $0) }, as: UTF8.self)
             addresses.append(InterfaceAddress(interface: name, address: address, scope: .of(address)))
         }
         return addresses

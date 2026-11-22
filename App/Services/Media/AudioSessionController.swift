@@ -50,7 +50,8 @@ enum AudioSessionController {
         case .talking:
             configuration.category = AVAudioSession.Category.playAndRecord.rawValue
             configuration.mode = AVAudioSession.Mode.voiceChat.rawValue
-            configuration.categoryOptions = [.defaultToSpeaker, .allowBluetooth, .mixWithOthers]
+            // A2DP keeps the sound in the parent's earphones while the phone's own microphone picks up the voice.
+            configuration.categoryOptions = [.defaultToSpeaker, .allowBluetoothA2DP, .mixWithOthers]
         }
         // WebRTC applies its stored configuration whenever it starts audio, so both must agree.
         RTCAudioSessionConfiguration.setWebRTC(configuration)

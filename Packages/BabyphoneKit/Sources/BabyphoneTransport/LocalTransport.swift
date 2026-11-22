@@ -45,7 +45,7 @@ enum LocalTransport {
     }
 }
 
-enum LocalNetworkError: Error {
+public enum LocalNetworkError: Error {
     /// No matching baby unit answered on the local network in time.
     case notFound
     /// The user refused the local network permission, so nothing can be discovered.

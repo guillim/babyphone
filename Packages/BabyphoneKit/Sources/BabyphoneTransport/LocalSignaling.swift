@@ -3,7 +3,7 @@ import Foundation
 @preconcurrency import Network
 
 /// Baby side: advertises the monitor on the local network and accepts the paired parent unit.
-final class BonjourSignalingListener: LocalSignalingListening, @unchecked Sendable {
+public final class BonjourSignalingListener: LocalSignalingListening, @unchecked Sendable {
     private static let handshakeTimeout: Duration = .seconds(5)
     private static let restartDelay: TimeInterval = 2
 
@@ -12,11 +12,11 @@ final class BonjourSignalingListener: LocalSignalingListening, @unchecked Sendab
     private var listener: NWListener?
     private var channels: AsyncStream<any FrameChannel>.Continuation?
 
-    init(key: PairingKey) {
+    public init(key: PairingKey) {
         self.key = key
     }
 
-    func start() async throws -> AsyncStream<any FrameChannel> {
+    public func start() async throws -> AsyncStream<any FrameChannel> {
         let (stream, continuation) = AsyncStream.makeStream(of: (any FrameChannel).self)
         LocalTransport.queue.async { [self] in
             channels = continuation
@@ -25,7 +25,7 @@ final class BonjourSignalingListener: LocalSignalingListening, @unchecked Sendab
         return stream
     }
 
-    func stop() async {
+    public func stop() async {
         LocalTransport.queue.async { [self] in
             channels?.finish()
             channels = nil
@@ -78,10 +78,14 @@ final class BonjourSignalingListener: LocalSignalingListening, @unchecked Sendab
 }
 
 /// Parent side: finds the paired baby unit on the local network and opens a secured channel to it.
-struct BonjourSignalingConnector: LocalSignalingConnecting {
-    let key: PairingKey
+public struct BonjourSignalingConnector: LocalSignalingConnecting {
+    private let key: PairingKey
 
-    func connect(timeout: Duration) async throws -> any FrameChannel {
+    public init(key: PairingKey) {
+        self.key = key
+    }
+
+    public func connect(timeout: Duration) async throws -> any FrameChannel {
         let parameters = LocalTransport.monitorParameters(key: key)
         let endpoints = try await LocalDiscovery.endpoints(
             of: LocalTransport.monitorService,

@@ -38,6 +38,16 @@
                ReferencedContainer = "container:Packages/BabyphoneKit">
             </BuildableReference>
          </TestableReference>
+         <TestableReference
+            skipped = "NO">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "BabyphoneTransportTests"
+               BuildableName = "BabyphoneTransportTests"
+               BlueprintName = "BabyphoneTransportTests"
+               ReferencedContainer = "container:Packages/BabyphoneKit">
+            </BuildableReference>
+         </TestableReference>
       </Testables>
    </TestAction>
    <LaunchAction

@@ -1,4 +1,5 @@
 import BabyphoneCore
+import BabyphoneTransport
 import Foundation
 
 /// Baby side of pairing: shows an invitation and waits for the parent unit to answer it.

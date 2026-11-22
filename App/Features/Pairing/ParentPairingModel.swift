@@ -1,4 +1,5 @@
 import BabyphoneCore
+import BabyphoneTransport
 import Foundation
 
 /// Parent side of pairing: sends the scanned token or the typed code to the baby unit nearby.

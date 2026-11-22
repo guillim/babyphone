@@ -7,20 +7,20 @@ import Foundation
 /// The connection uses host candidates only: the ICE server list is empty, so
 /// there is no STUN lookup and no TURN relay. Each side's description already
 /// carries all its addresses, which is why one message each way is enough.
-final class WebRTCSession: NSObject, PeerSession, @unchecked Sendable {
-    enum Failure: Error {
+public final class WebRTCSession: NSObject, PeerSession, @unchecked Sendable {
+    public enum Failure: Error {
         case cannotCreateConnection
         case cannotCreateDataChannel
         case negotiationFailed
     }
 
     /// Addresses of the two ends of the connection in use.
-    struct Path: Sendable, Equatable {
-        let local: String
-        let remote: String
+    public struct Path: Sendable, Equatable {
+        public let local: String
+        public let remote: String
     }
 
-    let events: AsyncStream<PeerSessionEvent>
+    public let events: AsyncStream<PeerSessionEvent>
 
     private static var noConstraints: RTCMediaConstraints {
         RTCMediaConstraints(mandatoryConstraints: nil, optionalConstraints: nil)
@@ -38,7 +38,7 @@ final class WebRTCSession: NSObject, PeerSession, @unchecked Sendable {
     private var hasAnnouncedConnection = false
     private var gatheringWaiters: [CheckedContinuation<Void, Never>] = []
 
-    init(factory: RTCPeerConnectionFactory) throws {
+    public init(factory: RTCPeerConnectionFactory) throws {
         let configuration = RTCConfiguration()
         configuration.iceServers = []
         configuration.sdpSemantics = .unifiedPlan
@@ -58,7 +58,7 @@ final class WebRTCSession: NSObject, PeerSession, @unchecked Sendable {
     // MARK: Media
 
     /// Attaches the tracks this end sends. Call before `makeOffer`.
-    func addOutgoingMedia(audio: RTCAudioTrack, video: RTCVideoTrack, maxVideoBitrate: Int, maxFramerate: Int) {
+    public func addOutgoingMedia(audio: RTCAudioTrack, video: RTCVideoTrack, maxVideoBitrate: Int, maxFramerate: Int) {
         connection.add(audio, streamIds: ["room"])
         guard let videoSender = connection.add(video, streamIds: ["room"]) else { return }
         let parameters = videoSender.parameters
@@ -70,17 +70,17 @@ final class WebRTCSession: NSObject, PeerSession, @unchecked Sendable {
     }
 
     /// The picture received from the other end, once its offer has been accepted.
-    var remoteVideoTrack: RTCVideoTrack? {
+    public var remoteVideoTrack: RTCVideoTrack? {
         lock.withLock { incomingVideo }
     }
 
     /// Starts or stops sending audio towards the other end. Needs no renegotiation.
-    func setOutgoingAudio(_ track: RTCAudioTrack?) {
+    public func setOutgoingAudio(_ track: RTCAudioTrack?) {
         lock.withLock { talkBackSender }?.track = track
     }
 
     /// The addresses of the candidate pair that carries the media, for diagnostics.
-    func selectedPath() async -> Path? {
+    public func selectedPath() async -> Path? {
         await withCheckedContinuation { continuation in
             connection.statistics { report in
                 let statistics = report.statistics
@@ -103,7 +103,7 @@ final class WebRTCSession: NSObject, PeerSession, @unchecked Sendable {
 
     // MARK: PeerSession
 
-    func makeOffer() async throws -> String {
+    public func makeOffer() async throws -> String {
         let channelConfiguration = RTCDataChannelConfiguration()
         channelConfiguration.isOrdered = true
         guard let channel = connection.dataChannel(forLabel: "control", configuration: channelConfiguration) else {
@@ -115,7 +115,7 @@ final class WebRTCSession: NSObject, PeerSession, @unchecked Sendable {
         return try await completeLocalDescription()
     }
 
-    func makeAnswer(to offer: String) async throws -> String {
+    public func makeAnswer(to offer: String) async throws -> String {
         try await setDescription(.offer, offer, isLocal: false)
         prepareIncomingMedia()
         let answer = try await createDescription(.answer)
@@ -123,17 +123,17 @@ final class WebRTCSession: NSObject, PeerSession, @unchecked Sendable {
         return try await completeLocalDescription()
     }
 
-    func accept(answer: String) async throws {
+    public func accept(answer: String) async throws {
         try await setDescription(.answer, answer, isLocal: false)
     }
 
     @discardableResult
-    func send(_ data: Data) -> Bool {
+    public func send(_ data: Data) -> Bool {
         guard let channel = lock.withLock({ dataChannel }), channel.readyState == .open else { return false }
         return channel.sendData(RTCDataBuffer(data: data, isBinary: true))
     }
 
-    func close() {
+    public func close() {
         connection.close()
         eventContinuation.finish()
         resumeGatheringWaiters()
@@ -143,7 +143,7 @@ final class WebRTCSession: NSObject, PeerSession, @unchecked Sendable {
 
     private func createDescription(_ type: RTCSdpType) async throws -> String {
         try await withCheckedThrowingContinuation { continuation in
-            let completion: (RTCSessionDescription?, (any Error)?) -> Void = { description, error in
+            let completion: @Sendable (RTCSessionDescription?, (any Error)?) -> Void = { description, error in
                 if let description {
                     continuation.resume(returning: description.sdp)
                 } else {
@@ -161,7 +161,7 @@ final class WebRTCSession: NSObject, PeerSession, @unchecked Sendable {
     private func setDescription(_ type: RTCSdpType, _ sdp: String, isLocal: Bool) async throws {
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, any Error>) in
             let description = RTCSessionDescription(type: type, sdp: sdp)
-            let completion: ((any Error)?) -> Void = { error in
+            let completion: @Sendable ((any Error)?) -> Void = { error in
                 if let error {
                     continuation.resume(throwing: error)
                 } else {
@@ -241,7 +241,7 @@ final class WebRTCSession: NSObject, PeerSession, @unchecked Sendable {
 }
 
 extension WebRTCSession: RTCPeerConnectionDelegate {
-    func peerConnection(_ peerConnection: RTCPeerConnection, didChange newState: RTCIceConnectionState) {
+    public func peerConnection(_ peerConnection: RTCPeerConnection, didChange newState: RTCIceConnectionState) {
         switch newState {
         case .connected, .completed:
             lock.withLock { isTransportConnected = true }
@@ -254,30 +254,35 @@ extension WebRTCSession: RTCPeerConnectionDelegate {
         }
     }
 
-    func peerConnection(_ peerConnection: RTCPeerConnection, didChange newState: RTCIceGatheringState) {
+    public func peerConnection(_ peerConnection: RTCPeerConnection, didChange newState: RTCIceGatheringState) {
         if newState == .complete {
             resumeGatheringWaiters()
         }
     }
 
-    func peerConnection(_ peerConnection: RTCPeerConnection, didOpen dataChannel: RTCDataChannel) {
+    public func peerConnection(_ peerConnection: RTCPeerConnection, didOpen dataChannel: RTCDataChannel) {
         adopt(dataChannel)
     }
 
-    func peerConnection(_ peerConnection: RTCPeerConnection, didChange stateChanged: RTCSignalingState) {}
-    func peerConnection(_ peerConnection: RTCPeerConnection, didAdd stream: RTCMediaStream) {}
-    func peerConnection(_ peerConnection: RTCPeerConnection, didRemove stream: RTCMediaStream) {}
-    func peerConnectionShouldNegotiate(_ peerConnection: RTCPeerConnection) {}
-    func peerConnection(_ peerConnection: RTCPeerConnection, didGenerate candidate: RTCIceCandidate) {}
-    func peerConnection(_ peerConnection: RTCPeerConnection, didRemove candidates: [RTCIceCandidate]) {}
+    public func peerConnection(_ peerConnection: RTCPeerConnection, didChange stateChanged: RTCSignalingState) {}
+    public func peerConnection(_ peerConnection: RTCPeerConnection, didAdd stream: RTCMediaStream) {}
+    public func peerConnection(_ peerConnection: RTCPeerConnection, didRemove stream: RTCMediaStream) {}
+    public func peerConnectionShouldNegotiate(_ peerConnection: RTCPeerConnection) {}
+    public func peerConnection(_ peerConnection: RTCPeerConnection, didGenerate candidate: RTCIceCandidate) {}
+    public func peerConnection(_ peerConnection: RTCPeerConnection, didRemove candidates: [RTCIceCandidate]) {}
 }
 
 extension WebRTCSession: RTCDataChannelDelegate {
-    func dataChannelDidChangeState(_ dataChannel: RTCDataChannel) {
-        announceConnectionIfReady()
+    public func dataChannelDidChangeState(_ dataChannel: RTCDataChannel) {
+        if dataChannel.readyState == .closed {
+            // The other end hung up. Saying so now spares the wait for the silence timeout.
+            eventContinuation.yield(.failed)
+        } else {
+            announceConnectionIfReady()
+        }
     }
 
-    func dataChannel(_ dataChannel: RTCDataChannel, didReceiveMessageWith buffer: RTCDataBuffer) {
+    public func dataChannel(_ dataChannel: RTCDataChannel, didReceiveMessageWith buffer: RTCDataBuffer) {
         eventContinuation.yield(.message(buffer.data))
     }
 }

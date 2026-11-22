@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		BB0000000000000000000018 /* BabyphoneCore in Frameworks */ = {isa = PBXBuildFile; productRef = BB0000000000000000000016 /* BabyphoneCore */; };
 		BB0000000000000000000019 /* WebRTC in Frameworks */ = {isa = PBXBuildFile; productRef = BB0000000000000000000017 /* WebRTC */; };
+		BB000000000000000000001B /* BabyphoneTransport in Frameworks */ = {isa = PBXBuildFile; productRef = BB000000000000000000001A /* BabyphoneTransport */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -33,6 +34,7 @@
 			files = (
 				BB0000000000000000000018 /* BabyphoneCore in Frameworks */,
 				BB0000000000000000000019 /* WebRTC in Frameworks */,
+				BB000000000000000000001B /* BabyphoneTransport in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -88,6 +90,7 @@
 			packageProductDependencies = (
 				BB0000000000000000000016 /* BabyphoneCore */,
 				BB0000000000000000000017 /* WebRTC */,
+				BB000000000000000000001A /* BabyphoneTransport */,
 			);
 			productName = Babyphone;
 			productReference = BB0000000000000000000006 /* Babyphone.app */;
@@ -274,6 +277,10 @@
 		BB0000000000000000000016 /* BabyphoneCore */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = BabyphoneCore;
+		};
+		BB000000000000000000001A /* BabyphoneTransport */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = BabyphoneTransport;
 		};
 		BB0000000000000000000017 /* WebRTC */ = {
 			isa = XCSwiftPackageProductDependency;

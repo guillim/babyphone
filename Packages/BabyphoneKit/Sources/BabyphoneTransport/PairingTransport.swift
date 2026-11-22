@@ -3,7 +3,7 @@ import Foundation
 @preconcurrency import Network
 
 /// Baby side: advertises the pairing service while the pairing screen is open.
-final class PairingListener: @unchecked Sendable {
+public final class PairingListener: @unchecked Sendable {
     private let host: PairingHost
     private let onPaired: @Sendable (PairingKey) -> Void
     private let onUnavailable: @Sendable () -> Void
@@ -11,7 +11,7 @@ final class PairingListener: @unchecked Sendable {
 
     /// - Parameter onUnavailable: called when the service cannot be advertised, which
     ///   in practice means the local network permission is off.
-    init(
+    public init(
         host: PairingHost,
         onPaired: @escaping @Sendable (PairingKey) -> Void,
         onUnavailable: @escaping @Sendable () -> Void
@@ -21,7 +21,7 @@ final class PairingListener: @unchecked Sendable {
         self.onUnavailable = onUnavailable
     }
 
-    func start() throws {
+    public func start() throws {
         let listener = try NWListener(using: LocalTransport.pairingParameters)
         listener.service = NWListener.Service(type: LocalTransport.pairingService)
         listener.stateUpdateHandler = { [onUnavailable] state in
@@ -46,15 +46,15 @@ final class PairingListener: @unchecked Sendable {
         self.listener = listener
     }
 
-    func stop() {
+    public func stop() {
         listener?.cancel()
         listener = nil
     }
 }
 
 /// Parent side: finds a baby unit in pairing mode nearby and runs the pairing exchange with it.
-enum PairingClient {
-    static func pair(using credential: PairingCredential) async throws -> PairingKey {
+public enum PairingClient {
+    public static func pair(using credential: PairingCredential) async throws -> PairingKey {
         let parameters = LocalTransport.pairingParameters
         let endpoints = try await LocalDiscovery.endpoints(
             of: LocalTransport.pairingService,

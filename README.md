@@ -27,8 +27,9 @@ At home the phones find each other over Wi-Fi with Bonjour. This needs neither i
 
 | Path | Content |
 | --- | --- |
-| `Packages/BabyphoneKit` | `BabyphoneCore`: every decision that needs no Apple framework. Pairing, wire formats, connection logic, noise detection, database. Builds and tests on Linux and macOS. |
-| `App/Services` | Thin adapters around Apple frameworks: WebRTC, Bonjour, CloudKit, audio, camera, notifications. |
+| `Packages/BabyphoneKit`, `BabyphoneCore` | Every decision that needs no Apple framework: pairing, wire formats, connection logic, noise detection, database. Builds and tests on Linux and macOS. |
+| `Packages/BabyphoneKit`, `BabyphoneTransport` | The real transports: the WebRTC peer connection, and the TCP and TLS channels on the local network. Its tests run the real stacks on a Mac. |
+| `App/Services` | Thin adapters around the remaining Apple frameworks: camera, audio, CloudKit, notifications. |
 | `App/Features` | One folder per screen, each with a SwiftUI view and its model. |
 | `App/DesignSystem` | Colours, type and shared components. |
 | `App/Resources` | Icon, colours, French and English strings. |
@@ -69,11 +70,20 @@ These answer the open questions and proposals of the handoff brief. Each one is 
 
 ## What is verified and what is not
 
-Verified by automated tests: pairing and its failure cases, the wire formats, noise detection, the journal and its sync, the encrypted rendezvous records, and the connection logic of both phones against each other (local, remote, reconnection, every failure reason). The whole app compiles in CI with the oldest and the newest supported Xcode.
+Verified by automated tests:
+
+- Pairing and its failure cases, the wire formats, noise detection, the journal and its sync, the encrypted rendezvous records.
+- The connection logic of both phones against each other over a simulated network: local, remote, reconnection, every failure reason.
+- The real WebRTC stack: two peer connections with an empty server list connect directly and exchange messages, including with an offer made long before its answer.
+- The real secured channel: frames cross TLS keyed by the pairing key, and a phone with another key is refused.
+- Both phones end to end over real TLS and real WebRTC, on the local path and through the rendezvous.
+
+The whole app compiles in CI with the oldest and the newest supported Xcode.
 
 Not verified, because it needs two real iPhones:
 
-- Everything that touches hardware: camera, microphone, speaker, torch, Bonjour, CloudKit.
+- Everything that touches hardware or an account: camera, microphone, speaker, torch, CloudKit.
+- Bonjour discovery. Its tests exist and run on a Mac, but not in CI, where the local network is not available.
 - The parent app staying alive in the background for a whole night, including after a phone call.
 - The direct IPv6 connection through real home routers and mobile networks.
 - Sound levels. The three noise thresholds in `Sensitivity.swift` are starting values to calibrate.
@@ -89,8 +99,8 @@ Not verified, because it needs two real iPhones:
 ## Tests
 
 ```sh
-swift test --package-path Packages/BabyphoneKit   # core logic
+swift test --package-path Packages/BabyphoneKit   # core logic, WebRTC and network transports
 python3 Scripts/localizations.py                  # every string exists in French and English
 ```
 
-In Xcode, ⌘U runs the core tests.
+On Linux the first command runs the core tests only. In Xcode, ⌘U runs both test suites.
