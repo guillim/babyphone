@@ -131,10 +131,10 @@ final class BabyMonitorModel: ObservableObject {
         )
         self.host = host
         roomAudio.onLevel = { [weak self] decibels in
-            Task { @MainActor in self?.ingest(decibels: decibels) }
+            Task { @MainActor [weak self] in self?.ingest(decibels: decibels) }
         }
-        network.start { [weak host] in
-            Task { await host?.networkDidChange() }
+        network.start { [host] in
+            Task { await host.networkDidChange() }
         }
         tasks = [
             Task { [weak self] in

@@ -72,7 +72,7 @@ final class ParentMonitorModel: ObservableObject {
         audio.start()
         DeviceHealth.startMonitoring()
         network.start { [weak self] in
-            Task { @MainActor in self?.networkDidChange() }
+            Task { @MainActor [weak self] in self?.networkDidChange() }
         }
 
         let connector = ParentConnector(

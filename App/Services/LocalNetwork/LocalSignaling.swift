@@ -48,7 +48,7 @@ final class BonjourSignalingListener: LocalSignalingListening, @unchecked Sendab
             // A listener fails when its network goes away. Start a fresh one once things settle.
             guard case .failed = state else { return }
             listener.cancel()
-            LocalTransport.queue.asyncAfter(deadline: .now() + Self.restartDelay) {
+            LocalTransport.queue.asyncAfter(deadline: .now() + Self.restartDelay) { [weak self] in
                 self?.listen()
             }
         }
@@ -66,7 +66,7 @@ final class BonjourSignalingListener: LocalSignalingListening, @unchecked Sendab
                 channel.close()
                 return
             }
-            LocalTransport.queue.async {
+            LocalTransport.queue.async { [weak self] in
                 if let channels = self?.channels {
                     channels.yield(channel)
                 } else {

@@ -78,6 +78,7 @@ Not verified, because it needs two real iPhones:
 - The direct IPv6 connection through real home routers and mobile networks.
 - Sound levels. The three noise thresholds in `Sensitivity.swift` are starting values to calibrate.
 - The sound meter and the lullaby sharing the microphone and speaker with WebRTC.
+- Sound on the parent phone. It listens with the playback audio category so that the microphone stays off outside talk-back. If the parent phone stays silent, this is the first place to look: `AudioSessionController.swift`.
 
 ## Before the first real night
 

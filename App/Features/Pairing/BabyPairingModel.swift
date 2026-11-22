@@ -23,7 +23,7 @@ final class BabyPairingModel: ObservableObject {
         let listener = PairingListener(
             host: host,
             onPaired: { key in Task { @MainActor in onPaired(key) } },
-            onUnavailable: { [weak self] in Task { @MainActor in self?.isUnreachable = true } }
+            onUnavailable: { [weak self] in Task { @MainActor [weak self] in self?.isUnreachable = true } }
         )
         do {
             try listener.start()
