@@ -32,8 +32,14 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # The smallest supported iPhone, where everything must fit, and an iPad.
-        device: [iPhone SE, iPad]
+        # The smallest supported iPhone, where everything must fit, a current
+        # iPhone, and an iPad.
+        include:
+          - device: iPhone SE
+            model: iPhone SE (3rd generation)
+          - device: iPhone 17
+            model: iPhone 17
+          - device: iPad
     steps:
       - uses: actions/checkout@v5
       - name: Build
@@ -53,7 +59,7 @@ jobs:
             # iPad model names change with every Xcode: take one this Xcode already set up.
             device=$(xcrun simctl list devices available | grep -E '^ +iPad' | head -1 | grep -oE '[0-9A-F-]{36}')
           else
-            device=$(xcrun simctl create nid-screens "iPhone SE (3rd generation)")
+            device=$(xcrun simctl create nid-screens "${{ matrix.model }}")
           fi
           # Permissions are granted ahead of time, so no alert interrupts the tests.
           Scripts/start-simulator.sh "$device" "$APP"

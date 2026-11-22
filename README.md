@@ -90,7 +90,7 @@ Verified by automated tests:
 - The real WebRTC stack: two peer connections with an empty server list connect directly and exchange messages, including with an offer made long before its answer.
 - The real secured channel: frames cross TLS keyed by the pairing key, and a device with another key is refused.
 - Both devices end to end over real TLS and real WebRTC, on the local path and through the rendezvous, and two parents connected to the same baby unit at once.
-- The app itself in a simulator, on an iPhone SE and on an iPad: it starts, every screen appears, and the parent's controls fit an iPhone SE without scrolling.
+- The app itself in a simulator, on an iPhone SE, an iPhone 17 and an iPad: it starts, every screen appears, and the parent's controls fit an iPhone SE without scrolling.
 - The two apps together, in two simulators: pairing with the six-digit code, Bonjour discovery and connection over the local network, night light, lullaby, white noise and low-light commands over the live link, the journal sync, and a deliberate stop.
 
 The whole app compiles in CI with the oldest and the newest supported Xcode.
@@ -129,6 +129,6 @@ Two workflows run on GitHub:
 | Workflow | When | Checks | Duration |
 | --- | --- | --- | --- |
 | `CI` | Every push | Core tests on Linux, strings, then on the oldest and newest Xcode: all package tests, the transport tests five more times, and the app build | About 5 minutes |
-| `Simulators` | Every night, on demand, and when the UI tests change | The walk through the screens on an iPhone SE and an iPad, and the two-device session | 8 to 15 minutes for the screens, 15 to 30 for the two-device session. Nearly all of it is spent starting simulators, and build machines vary a lot. |
+| `Simulators` | Every night, on demand, and when the UI tests change | The walk through the screens on an iPhone SE, an iPhone 17 and an iPad, and the two-device session | 8 to 15 minutes for the screens, 15 to 30 for the two-device session. Nearly all of it is spent starting simulators, and build machines vary a lot. |
 
 `CI` is the gate. To run `Simulators` on a commit, open the Actions tab, choose the workflow and press « Run workflow ».
