@@ -109,7 +109,7 @@ Not verified, because it needs two real iPhones:
 
 ## Before the first real night
 
-1. **Overnight test.** Run both devices for eight hours, then once more with two parents connected. In the morning, open Réglages > Diagnostic réseau on each device and export the night log. It holds one line a minute with battery, temperature and link state. A gap in the parent's lines means iOS suspended the app.
+1. **Overnight test.** Run both devices for eight hours, then once more with two parents connected. In the morning, open Réglages > Diagnostic réseau on each device and export the night log. It holds one line a minute with battery, temperature and link state. A gap in the parent's lines means iOS suspended the app. For a connection that dropped, plug the device into a Mac, open Console and filter on the subsystem `nid`: every decision about the link is traced there.
 2. **IPv6 check.** The same screen says whether the device has a public IPv6 address. Check it on your home Wi-Fi and on 4G or 5G. Remote use needs it on both sides.
 3. **CloudKit schema.** The record type is created automatically in the Development environment on first use. Before TestFlight, deploy the schema to Production in the CloudKit Console.
 
@@ -121,3 +121,14 @@ python3 Scripts/localizations.py                  # every string exists in Frenc
 ```
 
 On Linux the first command runs the core tests only. In Xcode, ⌘U runs everything, including the walk through the screens in the selected simulator.
+
+No test waits without a limit. Every wait in the test helpers has a deadline, and `Scripts/test-with-watchdog.sh` stops a run that goes silent and prints where each thread is stuck.
+
+Two workflows run on GitHub at every push:
+
+| Workflow | Checks | Duration |
+| --- | --- | --- |
+| `CI` | Core tests on Linux, strings, then on the oldest and newest Xcode: all package tests, the transport tests five more times, and the app build | About 5 minutes |
+| `Simulators` | The walk through the screens on an iPhone SE and an iPad, and the two-device session | 10 to 15 minutes, most of it spent starting simulators |
+
+`CI` is the gate. `Simulators` runs beside it when the app, its tests or the package change.

@@ -11,8 +11,10 @@ on:
 concurrency:
   group: ci-${{ github.sha }}
 
-# The jobs run side by side, and each is built to finish well inside ten minutes.
-# The limits below turn anything that stalls into a quick failure.
+# This is the gate: it says within about five minutes whether a commit is sound.
+# The jobs run side by side, and the limits below turn anything that stalls into
+# a quick failure. Running the app in simulators takes longer on a build machine
+# and has its own workflow, simulators.yml.
 jobs:
   core:
     name: Core logic (Linux)
@@ -37,7 +39,7 @@ jobs:
   app:
     name: App (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 12
+    timeout-minutes: 10
     strategy:
       fail-fast: false
       matrix:
@@ -67,156 +69,3 @@ jobs:
             | xcbeautify --quiet --renderer github-actions
       - name: Show resolved package versions
         run: cat Babyphone.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved
-
-  # The jobs below run the app in simulators. They build first and boot afterwards:
-  # a simulator that is starting up slows a build several times over. They do not
-  # wait for the boot to finish either: the tests wait for as much of it as they need.
-  screens:
-    name: Screens (${{ matrix.device }})
-    runs-on: macos-26
-    timeout-minutes: 15
-    strategy:
-      fail-fast: false
-      matrix:
-        # The smallest supported iPhone, where everything must fit, and an iPad.
-        device: [iPhone SE, iPad]
-    steps:
-      - uses: actions/checkout@v5
-      - name: Build
-        run: |
-          set -o pipefail
-          xcodebuild build-for-testing \
-            -project Babyphone.xcodeproj \
-            -scheme BabyphoneUITests \
-            -destination 'generic/platform=iOS Simulator' \
-            -derivedDataPath Derived \
-            -skipPackagePluginValidation \
-            ARCHS=arm64 ONLY_ACTIVE_ARCH=NO \
-            | xcbeautify --quiet --renderer github-actions
-      - name: Start the simulator
-        run: |
-          if [ "${{ matrix.device }}" = "iPad" ]; then
-            # iPad model names change with every Xcode: take one this Xcode already set up.
-            device=$(xcrun simctl list devices available | grep -E '^ +iPad' | head -1 | grep -oE '[0-9A-F-]{36}')
-          else
-            device=$(xcrun simctl create nid-screens "iPhone SE (3rd generation)")
-          fi
-          # Permissions are granted ahead of time, so no alert interrupts the tests.
-          Scripts/start-simulator.sh "$device"
-          echo "DEVICE=$device" >> "$GITHUB_ENV"
-      - name: Walk the screens
-        run: |
-          set -o pipefail
-          xcodebuild test-without-building \
-            -project Babyphone.xcodeproj \
-            -scheme BabyphoneUITests \
-            -destination "id=$DEVICE" \
-            -derivedDataPath Derived \
-            -only-testing:BabyphoneUITests/SmokeTests \
-            -retry-tests-on-failure -test-iterations 2 \
-            -resultBundlePath Screens.xcresult \
-            | xcbeautify --quiet --renderer github-actions
-      - name: Export the screenshots
-        if: always()
-        run: xcrun xcresulttool export attachments --path Screens.xcresult --output-path Screenshots
-      - name: Print small copies of the screenshots
-        if: always()
-        run: |
-          cat Screenshots/manifest.json || true
-          for file in Screenshots/*.png; do
-            small="/tmp/$(basename "$file" .png).jpg"
-            sips -Z 520 -s format jpeg -s formatOptions 50 "$file" --out "$small" >/dev/null
-            echo "SHOT $(basename "$file") $(base64 -i "$small")"
-          done
-      - name: Keep the screenshots
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: screenshots ${{ matrix.device }}
-          path: Screenshots
-
-  two-devices:
-    name: Two devices, end to end
-    runs-on: macos-26
-    timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@v5
-      - name: Build
-        run: |
-          set -o pipefail
-          xcodebuild build-for-testing \
-            -project Babyphone.xcodeproj \
-            -scheme BabyphoneUITests \
-            -destination 'generic/platform=iOS Simulator' \
-            -derivedDataPath Derived \
-            -skipPackagePluginValidation \
-            ARCHS=arm64 ONLY_ACTIVE_ARCH=NO \
-            | xcbeautify --quiet --renderer github-actions
-      - name: Start two simulators
-        run: |
-          baby=$(xcrun simctl create nid-baby "iPhone 17")
-          parent=$(xcrun simctl create nid-parent "iPhone SE (3rd generation)")
-          # Permissions are granted ahead of time, so no alert interrupts the session.
-          Scripts/start-simulator.sh "$baby"
-          Scripts/start-simulator.sh "$parent"
-          echo "BABY=$baby" >> "$GITHUB_ENV"
-          echo "PARENT=$parent" >> "$GITHUB_ENV"
-      - name: Pair, connect and monitor
-        run: |
-          session() {
-            # The baby unit runs by itself and tells the test what happens through this folder.
-            folder="$RUNNER_TEMP/session-$1"
-            mkdir -p "$folder"
-            xcrun simctl terminate "$BABY" com.guillim.babyphone 2>/dev/null || true
-            # Installed and launched in the background, retried until the simulator is far enough into its boot.
-            (
-              for attempt in $(seq 1 90); do
-                xcrun simctl install "$BABY" Derived/Build/Products/Debug-iphonesimulator/Babyphone.app 2>/dev/null \
-                  && SIMCTL_CHILD_NID_UI_TEST_STATE=baby SIMCTL_CHILD_NID_TEST_SHARED_DIR="$folder" \
-                    xcrun simctl launch "$BABY" com.guillim.babyphone -AppleLanguages "(fr)" -AppleLocale fr_FR \
-                  && break
-                sleep 2
-              done
-            ) &
-            # Meanwhile the test starts driving the parent unit in the other simulator.
-            TEST_RUNNER_NID_SHARED_DIR="$folder" xcodebuild test-without-building \
-              -project Babyphone.xcodeproj \
-              -scheme BabyphoneUITests \
-              -destination "id=$PARENT" \
-              -derivedDataPath Derived \
-              -only-testing:BabyphoneUITests/TwoDeviceTests \
-              -resultBundlePath "Parent-$1.xcresult" > "Parent-$1.log" 2>&1
-            status=$?
-            wait
-            grep -hE "error|XCTAssert|failed|passed|Executed" "Parent-$1.log" | cut -c1-300 || true
-            ls "$folder"
-            xcrun simctl io "$BABY" screenshot "Baby-$1.png" || true
-            return $status
-          }
-          # A build machine sometimes fails to start a simulator's test runner. One more try settles it.
-          session 1 || session 2
-      - name: Export the screenshots
-        if: always()
-        run: |
-          mkdir -p Screenshots
-          cp Baby-*.png Screenshots/ || true
-          for result in Parent-*.xcresult; do
-            xcrun xcresulttool export attachments --path "$result" --output-path "Screenshots/${result%.xcresult}" || true
-          done
-      - name: Print small copies of the screenshots
-        if: always()
-        run: |
-          cat Screenshots/*/manifest.json || true
-          for file in Screenshots/*.png Screenshots/*/*.png; do
-            small="/tmp/$(basename "$file" .png).jpg"
-            sips -Z 440 -s format jpeg -s formatOptions 50 "$file" --out "$small" >/dev/null
-            echo "SHOT $(basename "$file") $(base64 -i "$small")"
-          done
-      - name: Keep the screenshots and logs
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: two-devices
-          path: |
-            Screenshots
-            Parent-*.log

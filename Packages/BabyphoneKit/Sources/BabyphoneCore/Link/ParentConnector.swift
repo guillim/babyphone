@@ -78,6 +78,7 @@ public actor ParentConnector {
     /// Drops the current link and connects again from scratch. For a link that
     /// still answers but no longer carries the stream, and for a manual retry.
     public func reconnect() async {
+        LinkLog.note("parent unit: reconnection requested")
         retryRequested = true
         await link?.close()
     }
@@ -206,6 +207,7 @@ public actor ParentConnector {
 
     private func set(_ newState: State) {
         guard newState != state else { return }
+        LinkLog.note("parent unit: \(newState)")
         state = newState
         stateContinuation.yield(newState)
     }

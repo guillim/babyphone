@@ -341,6 +341,7 @@ public final class WebRTCSession: NSObject, PeerSession, @unchecked Sendable {
     /// Runs on `queue`.
     private func channelStateDidChange(_ channel: RTCDataChannel) {
         let state = channel.readyState
+        LinkLog.note("data channel state \(state.rawValue)")
         lock.withLock { isChannelOpen = state == .open }
         if state == .closed {
             // The other end hung up. Saying so now spares the wait for the silence timeout.
@@ -366,6 +367,7 @@ public final class WebRTCSession: NSObject, PeerSession, @unchecked Sendable {
 // Callbacks from WebRTC's own threads. None of them calls into WebRTC.
 extension WebRTCSession: RTCPeerConnectionDelegate {
     public func peerConnection(_ peerConnection: RTCPeerConnection, didChange newState: RTCIceConnectionState) {
+        LinkLog.note("transport state \(newState.rawValue)")
         switch newState {
         case .connected, .completed:
             lock.withLock { isTransportConnected = true }

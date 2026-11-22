@@ -101,6 +101,7 @@ public actor BabyHost {
 
     private func serveLocally(_ channel: any FrameChannel) async {
         defer { channel.close() }
+        LinkLog.note("baby unit: a parent unit asks to connect on the local network")
         guard state != .stopped, let session = try? makeSession() else { return }
         let link = PeerLink(session: session, route: .local, timings: timings)
         do {
@@ -213,6 +214,9 @@ public actor BabyHost {
             return
         }
         let previous = link
+        if previous != nil {
+            LinkLog.note("baby unit: a new connection replaces the current one")
+        }
         link = newLink
         set(.connected(newLink.route))
         await previous?.close()
@@ -232,6 +236,7 @@ public actor BabyHost {
 
     private func set(_ newState: State) {
         guard newState != state else { return }
+        LinkLog.note("baby unit: \(newState)")
         state = newState
         stateContinuation.yield(newState)
     }

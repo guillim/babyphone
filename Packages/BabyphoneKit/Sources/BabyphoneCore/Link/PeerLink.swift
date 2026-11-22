@@ -94,6 +94,7 @@ public actor PeerLink {
         switch event {
         case .connected:
             guard case .pending = phase else { return }
+            LinkLog.note("\(route.rawValue) link connected")
             phase = .connected
             lastHeardFromPeer = .now
             startKeepalive()
@@ -133,6 +134,7 @@ public actor PeerLink {
 
     private func end(_ reason: EndReason) {
         if case .ended = phase { return }
+        LinkLog.note("\(route.rawValue) link ended: \(reason)")
         phase = .ended(reason)
         keepalive?.cancel()
         eventPump?.cancel()
