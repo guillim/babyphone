@@ -46,12 +46,12 @@ jobs:
       - name: Show Xcode version
         run: xcodebuild -version
       - name: Test the core logic, and the WebRTC and network transports
-        run: swift test --package-path Packages/BabyphoneKit
+        run: Scripts/test-with-watchdog.sh 420
       - name: Repeat the transport tests
         run: |
           # A deadlock between threads only shows now and then: several rounds make one visible.
           for round in 1 2 3 4 5 6 7 8 9 10; do
-            swift test --package-path Packages/BabyphoneKit --skip-build --filter BabyphoneTransportTests
+            Scripts/test-with-watchdog.sh 180 --skip-build --filter BabyphoneTransportTests
           done
       - name: Build the app
         run: |
