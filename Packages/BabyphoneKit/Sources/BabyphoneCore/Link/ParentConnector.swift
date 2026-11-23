@@ -4,6 +4,11 @@ import Foundation
 ///
 /// Each round tries the local network first, then the rendezvous provider.
 /// There is no relay, so a round can end with no connection at all.
+///
+/// The local network is looked at again whenever the connector waits: while no
+/// offer is published, and between two rounds. A baby unit that starts
+/// monitoring a moment after this phone is then found there within seconds,
+/// instead of through the rendezvous provider's slower exchange.
 public actor ParentConnector {
     public enum State: Sendable, Equatable {
         case idle
@@ -85,9 +90,16 @@ public actor ParentConnector {
 
     private func run() async {
         var failures = 0
+        var foundWhilePausing: PeerLink?
         while !Task.isCancelled {
-            set(.searching)
-            let outcome = await connect()
+            let outcome: Outcome
+            if let link = foundWhilePausing {
+                foundWhilePausing = nil
+                outcome = .connected(link)
+            } else {
+                set(.searching)
+                outcome = await connect()
+            }
             guard !Task.isCancelled else {
                 if case .connected(let link) = outcome { await link.close() }
                 return
@@ -105,7 +117,7 @@ public actor ParentConnector {
             case .unreachable(let reason):
                 failures += 1
                 set(.unreachable(reason))
-                await pauseBeforeRetry(timings.retryDelay(afterFailures: failures))
+                foundWhilePausing = await pauseBeforeRetry(timings.retryDelay(afterFailures: failures))
             }
         }
     }
@@ -156,7 +168,10 @@ public actor ParentConnector {
         while ContinuousClock.now < deadline, !Task.isCancelled {
             guard let offer = await freshOffer(from: rendezvous) else {
                 // No offer yet, or one already answered: the baby unit publishes a new one shortly.
-                try? await Task.sleep(for: timings.remoteRetryPause)
+                // It may also be starting on this network, where it is found much sooner.
+                if let link = await searchLocally(atLeast: timings.remoteRetryPause) {
+                    return .connected(link)
+                }
                 continue
             }
             lastAnsweredOffer = offer.id
@@ -197,12 +212,30 @@ public actor ParentConnector {
         return link
     }
 
-    private func pauseBeforeRetry(_ delay: Duration) async {
+    /// Waits before the next round, and returns the link if the baby unit turned up on the local network meanwhile.
+    private func pauseBeforeRetry(_ delay: Duration) async -> PeerLink? {
         retryRequested = false
         let deadline = ContinuousClock.now + delay
         while ContinuousClock.now < deadline, !retryRequested, !Task.isCancelled {
-            try? await Task.sleep(for: .milliseconds(200))
+            if let link = await searchLocally(atLeast: .milliseconds(200)) {
+                return link
+            }
         }
+        return nil
+    }
+
+    /// One look for the baby unit on the local network, taking at least `minimum`:
+    /// a search that fails at once, without the local network permission for example, must not spin.
+    private func searchLocally(atLeast minimum: Duration) async -> PeerLink? {
+        let started = ContinuousClock.now
+        if let link = await connectLocally() {
+            return link
+        }
+        let elapsed = ContinuousClock.now - started
+        if elapsed < minimum, !Task.isCancelled {
+            try? await Task.sleep(for: minimum - elapsed)
+        }
+        return nil
     }
 
     private func set(_ newState: State) {

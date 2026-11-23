@@ -98,6 +98,49 @@ import TestSupport
         #expect(await finishes { await host.stop() })
     }
 
+    @Test func findsABabyUnitThatStartsAfterTheParentOnTheLocalNetwork() async throws {
+        // The parent unit waits for an offer that never comes: only the local network can bring the baby unit.
+        var timings = LinkTimings.fast
+        timings.remoteWindow = .seconds(30)
+        let host = makeHost(remote: false)
+        let connector = ParentConnector(
+            makeSession: media.factory,
+            local: localNetwork,
+            rendezvous: RendezvousClient(provider: cloud, key: key, role: .parent),
+            timings: timings
+        )
+        let parentStates = Recorder(connector.states)
+        // The parent unit starts first: its first look on the local network finds nobody.
+        await connector.start()
+        try await Task.sleep(for: .milliseconds(300))
+        await host.start()
+
+        // Long before the 30-second remote window ends: the parent unit did not wait for it.
+        #expect(await parentStates.waitFor { $0 == .connected(.local) }, "parent: \(parentStates.all)")
+        #expect(!parentStates.all.contains { if case .unreachable = $0 { true } else { false } })
+
+        #expect(await finishes { await connector.stop() })
+        #expect(await finishes { await host.stop() })
+    }
+
+    @Test func findsTheBabyUnitLocallyBetweenTwoRounds() async throws {
+        var timings = LinkTimings.fast
+        timings.retryBackoff = [.seconds(30)]
+        let connector = ParentConnector(makeSession: media.factory, local: localNetwork, rendezvous: nil, timings: timings)
+        let parentStates = Recorder(connector.states)
+        await connector.start()
+        #expect(await parentStates.waitFor { $0 == .unreachable(.rendezvousUnavailable) })
+
+        // The next round is 30 seconds away and no retry is requested:
+        // only the pause itself, looking on the local network, can find the baby unit.
+        let host = makeHost(remote: false)
+        await host.start()
+        #expect(await parentStates.waitFor { $0 == .connected(.local) }, "parent: \(parentStates.all)")
+
+        #expect(await finishes { await connector.stop() })
+        #expect(await finishes { await host.stop() })
+    }
+
     @Test func connectsRemotelyWhenThePhonesAreOnDifferentNetworks() async throws {
         localNetwork.arePhonesOnSameNetwork = false
         let host = makeHost(), connector = makeConnector()
