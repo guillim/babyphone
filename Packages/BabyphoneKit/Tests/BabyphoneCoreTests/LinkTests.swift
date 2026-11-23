@@ -6,11 +6,11 @@ import TestSupport
 @Suite(.timeLimit(.minutes(1))) struct PeerLinkTests {
     private let network = FakeNetwork()
 
-    private func connectedPair() async throws -> (PeerLink, PeerLink, FakeSession, FakeSession) {
+    private func connectedPair(timings: LinkTimings = .fast) async throws -> (PeerLink, PeerLink, FakeSession, FakeSession) {
         let offerer = try #require(try network.factory() as? FakeSession)
         let answerer = try #require(try network.factory() as? FakeSession)
-        let first = PeerLink(session: offerer, route: .local, timings: .fast)
-        let second = PeerLink(session: answerer, route: .local, timings: .fast)
+        let first = PeerLink(session: offerer, route: .local, timings: timings)
+        let second = PeerLink(session: answerer, route: .local, timings: timings)
         let answer = try await answerer.makeAnswer(to: try await offerer.makeOffer())
         try await offerer.accept(answer: answer)
         #expect(await first.waitUntilConnected(timeout: .seconds(1)))
@@ -28,9 +28,13 @@ import TestSupport
     }
 
     @Test func staysUpWhileKeepalivesFlow() async throws {
-        let (first, second, _, _) = try await connectedPair()
+        // A silence timeout a busy test machine cannot miss by accident: the fast one,
+        // 200 ms, was sometimes exceeded by a scheduling pause alone.
+        var timings = LinkTimings.fast
+        timings.silenceTimeout = .seconds(1)
+        let (first, second, _, _) = try await connectedPair(timings: timings)
         // Several silence timeouts pass with no application traffic at all.
-        try await Task.sleep(for: .milliseconds(700))
+        try await Task.sleep(for: .seconds(3))
         await first.send(Data([1]))
         #expect(await next(of: second.payloads) == Data([1]))
     }
