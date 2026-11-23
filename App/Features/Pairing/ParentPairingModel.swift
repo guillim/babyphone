@@ -36,7 +36,11 @@ final class ParentPairingModel: ObservableObject {
         failure = nil
         Task {
             do {
-                onPaired(try await PairingClient.pair(using: credential))
+                let key = try await PairingClient.pair(using: credential)
+                // `isPairing` stays set: the scanner still sees the baby unit's QR code
+                // and would otherwise pair a second time, with a second key.
+                onPaired(key)
+                return
             } catch PairingError.wrongCredential {
                 failure = .wrongCode
             } catch PairingError.incompatibleVersion {
