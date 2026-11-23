@@ -378,6 +378,8 @@ private struct TalkButton: View {
     let isTalking: Bool
     let isEnabled: Bool
     let onChange: @MainActor (Bool) -> Void
+    /// Resets by itself when the system cancels the touch, which `onEnded` never reports.
+    @GestureState private var isPressed = false
 
     var body: some View {
         HStack(spacing: 10) {
@@ -394,9 +396,11 @@ private struct TalkButton: View {
         // A zero-distance drag reports both the press and the release, which a tap cannot.
         .gesture(
             DragGesture(minimumDistance: 0)
-                .onChanged { _ in if isEnabled, !isTalking { onChange(true) } }
-                .onEnded { _ in onChange(false) }
+                .updating($isPressed) { _, isPressed, _ in isPressed = true }
         )
+        .onChange(of: isPressed) { isPressed in
+            onChange(isPressed && isEnabled)
+        }
         .accessibilityElement()
         .accessibilityLabel(Text("parent.talk"))
         .accessibilityAddTraits(.isButton)

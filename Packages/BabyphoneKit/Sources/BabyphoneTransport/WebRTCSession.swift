@@ -47,6 +47,7 @@ public final class WebRTCSession: NSObject, PeerSession, @unchecked Sendable {
     private var dataChannel: RTCDataChannel?
     private var talkBackSender: RTCRtpSender?
     private var videoSender: RTCRtpSender?
+    private var isIncomingAudioEnabled = true
     // Guarded by `lock`: a copy of what WebRTC reported, readable from any thread.
     private let lock = NSLock()
     private var incomingVideo: RTCVideoTrack?
@@ -80,6 +81,7 @@ public final class WebRTCSession: NSObject, PeerSession, @unchecked Sendable {
         queue.async { [self] in
             guard let connection else { return }
             connection.add(audio, streamIds: ["room"])
+            applyIncomingAudio(to: connection)
             guard let sender = connection.add(video, streamIds: ["room"]) else { return }
             let parameters = sender.parameters
             for encoding in parameters.encodings {
@@ -97,9 +99,31 @@ public final class WebRTCSession: NSObject, PeerSession, @unchecked Sendable {
     }
 
     /// Starts or stops sending audio towards the other end. Needs no renegotiation.
+    /// Without a track the sender is also deactivated, so no audio stream runs at all.
     public func setOutgoingAudio(_ track: RTCAudioTrack?) {
         queue.async { [self] in
-            talkBackSender?.track = track
+            guard let talkBackSender else { return }
+            talkBackSender.track = track
+            let parameters = talkBackSender.parameters
+            for encoding in parameters.encodings {
+                encoding.isActive = track != nil
+            }
+            talkBackSender.parameters = parameters
+        }
+    }
+
+    /// Plays the audio received from the other end, or keeps it silent.
+    public func setIncomingAudioEnabled(_ isEnabled: Bool) {
+        queue.async { [self] in
+            isIncomingAudioEnabled = isEnabled
+            if let connection { applyIncomingAudio(to: connection) }
+        }
+    }
+
+    /// Runs on `queue`.
+    private func applyIncomingAudio(to connection: RTCPeerConnection) {
+        for transceiver in connection.transceivers where transceiver.mediaType == .audio {
+            transceiver.receiver.track?.isEnabled = isIncomingAudioEnabled
         }
     }
 
@@ -322,6 +346,13 @@ public final class WebRTCSession: NSObject, PeerSession, @unchecked Sendable {
                 var error: NSError?
                 transceiver.setDirection(.sendRecv, error: &error)
                 talkBackSender = transceiver.sender
+                // Nothing is sent until talk-back starts.
+                let parameters = transceiver.sender.parameters
+                for encoding in parameters.encodings {
+                    encoding.isActive = false
+                }
+                transceiver.sender.parameters = parameters
+                transceiver.receiver.track?.isEnabled = isIncomingAudioEnabled
             case .video:
                 let track = transceiver.receiver.track as? RTCVideoTrack
                 lock.withLock { incomingVideo = track }

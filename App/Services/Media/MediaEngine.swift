@@ -48,6 +48,8 @@ final class BabyMedia: @unchecked Sendable {
     func makePeer() -> BabyPeerMedia {
         BabyPeerMedia { [self] in
             let session = try WebRTCSession(factory: engine.factory)
+            // The parent's voice is only played while they hold the talk button.
+            session.setIncomingAudioEnabled(false)
             session.addOutgoingMedia(
                 audio: audioTrack, video: videoTrack,
                 maxVideoBitrate: VideoQuality.maxBitrate, maxFramerate: VideoQuality.framesPerSecond
@@ -108,6 +110,11 @@ final class BabyPeerMedia: @unchecked Sendable {
         }
     }
 
+    /// Plays this parent's voice on the speaker, or keeps the baby unit silent.
+    func setPlayingParentVoice(_ isPlaying: Bool) {
+        lock.withLock { latestSession }?.setIncomingAudioEnabled(isPlaying)
+    }
+
     /// Sends the picture to this parent, or only the sound.
     func setVideoActive(_ isActive: Bool) {
         lock.withLock { latestSession }?.setOutgoingVideoActive(isActive)
@@ -146,6 +153,7 @@ final class ParentMedia: @unchecked Sendable {
                 let noConstraints = RTCMediaConstraints(mandatoryConstraints: nil, optionalConstraints: nil)
                 microphoneTrack = engine.factory.audioTrack(with: engine.factory.audioSource(with: noConstraints), trackId: "parent-voice")
             }
+            microphoneTrack?.isEnabled = isTalking
             return (latestSession, isTalking ? microphoneTrack : nil)
         }
         session?.setOutgoingAudio(track)

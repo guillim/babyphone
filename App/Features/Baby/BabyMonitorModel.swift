@@ -425,6 +425,7 @@ final class BabyMonitorModel: ObservableObject {
         parent.link = state
         if parent.route == nil {
             parent.isTalking = false
+            parent.media.setPlayingParentVoice(false)
         }
         connectedRoutes = parents.compactMap(\.route)
         updateCamera()
@@ -460,6 +461,7 @@ final class BabyMonitorModel: ObservableObject {
             try? await settings.set(sensitivity.rawValue, for: .sensitivity)
         case .talking(let isTalking):
             parent.isTalking = isTalking
+            parent.media.setPlayingParentVoice(isTalking)
         }
     }
 
