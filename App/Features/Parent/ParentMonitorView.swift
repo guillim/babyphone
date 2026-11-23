@@ -147,10 +147,6 @@ struct ParentMonitorView: View {
                     isOn: model.status?.isLowLightOn ?? false, action: model.toggleLowLight
                 )
                 .accessibilityIdentifier("parent.lowLight")
-                ToggleTile(
-                    title: "parent.audioOnly", systemImage: "waveform",
-                    isOn: !(model.status?.isVideoEnabled ?? true), action: model.toggleVideo
-                )
             }
             .disabled(!model.isConnected)
             .opacity(model.isConnected ? 1 : 0.5)
@@ -183,6 +179,23 @@ struct ParentMonitorView: View {
         }
         .frame(maxWidth: .infinity)
         .clipShape(RoundedRectangle(cornerRadius: Theme.cornerRadius))
+        .overlay(alignment: .bottomTrailing) {
+            // The picture's own switch: off keeps only the sound.
+            if model.isConnected {
+                let isAudioOnly = !(model.status?.isVideoEnabled ?? true)
+                Button(action: model.toggleVideo) {
+                    Image(systemName: isAudioOnly ? "video.slash.fill" : "video.fill")
+                        .font(.body.weight(.semibold))
+                        .foregroundStyle(.white)
+                        .frame(width: 44, height: 44)
+                        .background(.black.opacity(0.5), in: Circle())
+                }
+                .accessibilityLabel(Text("parent.audioOnly"))
+                .accessibilityAddTraits(isAudioOnly ? .isSelected : [])
+                .accessibilityIdentifier("parent.audioOnly")
+                .padding(10)
+            }
+        }
         .overlay(alignment: .topLeading) {
             if model.isConnected {
                 Badge(text: Text("parent.live \(networkName)"), systemImage: "dot.radiowaves.left.and.right")
