@@ -51,12 +51,6 @@ import TestSupport
         #expect(policy.rings(.noise, at: start, isCryDetectionActive: false))
     }
 
-    @Test func volumesRiseFromSoftToLoud() {
-        #expect(AlarmVolume.soft.gain < AlarmVolume.medium.gain)
-        #expect(AlarmVolume.medium.gain < AlarmVolume.loud.gain)
-        #expect(AlarmVolume.loud.gain == 1)
-    }
-
     // MARK: Cry detector
 
     @Test func oneConfidentReadingIsNotACry() {

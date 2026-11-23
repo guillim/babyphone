@@ -158,22 +158,17 @@ struct SettingsView: View {
     }
 }
 
-/// One parent's choices about alerts: how loud, about what, and a pause.
+/// One parent's choices about alerts: about what, and a pause.
 private struct ParentAlertSection: View {
     @ObservedObject var model: ParentMonitorModel
 
     var body: some View {
         Section {
-            Picker("settings.alerts.volume", selection: volume) {
-                Text("settings.alerts.volume.soft").tag(AlarmVolume.soft)
-                Text("settings.alerts.volume.medium").tag(AlarmVolume.medium)
-                Text("settings.alerts.volume.loud").tag(AlarmVolume.loud)
-            }
-            .accessibilityIdentifier("settings.alerts.volume")
             Picker("settings.alerts.trigger", selection: trigger) {
                 Text("settings.alerts.trigger.anyNoise").tag(AlertTrigger.anyNoise)
                 Text("settings.alerts.trigger.cryOnly").tag(AlertTrigger.cryOnly)
             }
+            .accessibilityIdentifier("settings.alerts.trigger")
             if model.alertPolicy.trigger == .cryOnly, model.status?.isCryDetectionActive == false {
                 Text("settings.alerts.cryUnavailable")
                     .font(.footnote)
@@ -198,10 +193,6 @@ private struct ParentAlertSection: View {
         } footer: {
             Text("settings.alerts.footer")
         }
-    }
-
-    private var volume: Binding<AlarmVolume> {
-        Binding(get: { model.alertPolicy.volume }, set: { model.setAlarmVolume($0) })
     }
 
     private var trigger: Binding<AlertTrigger> {

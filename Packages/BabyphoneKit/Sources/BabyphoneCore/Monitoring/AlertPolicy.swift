@@ -1,21 +1,5 @@
 import Foundation
 
-/// How loud the parent unit plays its alarm and its chime.
-public enum AlarmVolume: String, Codable, Sendable, CaseIterable {
-    case soft
-    case medium
-    case loud
-
-    /// Gain applied to the alert sounds, on top of the device's own volume.
-    public var gain: Float {
-        switch self {
-        case .soft: 0.2
-        case .medium: 0.5
-        case .loud: 1
-        }
-    }
-}
-
 /// What a parent wants to be alerted about.
 public enum AlertTrigger: String, Codable, Sendable, CaseIterable {
     /// Any sound above the room's background level.
@@ -33,7 +17,7 @@ public enum AlertKind: Sendable, Equatable {
     case linkLost
 }
 
-/// One parent's choices about alerts: how loud, about what, and whether they are paused.
+/// One parent's choices about alerts: about what, and whether they are paused.
 ///
 /// A pause only quietens what a parent can decide to let be: noise and crying.
 /// A lost link and a baby unit running out of power always ring, because
@@ -42,13 +26,11 @@ public struct AlertPolicy: Sendable, Equatable {
     /// Lengths of pause offered to the parent, in minutes.
     public static let snoozeChoices = [10, 30, 60]
 
-    public var volume: AlarmVolume
     public var trigger: AlertTrigger
     /// End of the current pause, or nil when alerts are not paused.
     public private(set) var snoozedUntil: Date?
 
-    public init(volume: AlarmVolume = .loud, trigger: AlertTrigger = .anyNoise) {
-        self.volume = volume
+    public init(trigger: AlertTrigger = .anyNoise) {
         self.trigger = trigger
     }
 

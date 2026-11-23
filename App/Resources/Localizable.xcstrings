@@ -2982,13 +2982,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "The volume applies on top of the device's own. Crying is recognised by the device in the baby's room: it is an estimate and can be wrong. A pause never silences the lost-link alarm or the battery alert."
+            "value" : "Alerts play at the phone's volume. Crying is recognised by the device in the baby's room: it is an estimate and can be wrong. A pause never silences the lost-link alarm or the battery alert."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Le volume s'ajoute à celui de l'appareil. Les pleurs sont reconnus par l'appareil côté bébé : c'est une estimation, qui peut se tromper. Une pause ne coupe jamais l'alarme de liaison perdue ni l'alerte de batterie."
+            "value" : "Les alertes sonnent au volume du téléphone. Les pleurs sont reconnus par l'appareil côté bébé : c'est une estimation, qui peut se tromper. Une pause ne coupe jamais l'alarme de liaison perdue ni l'alerte de batterie."
           }
         }
       }
@@ -3057,74 +3057,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Les pleurs seulement"
-          }
-        }
-      }
-    },
-    "settings.alerts.volume" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Alarm volume"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Volume de l'alarme"
-          }
-        }
-      }
-    },
-    "settings.alerts.volume.loud" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Loud"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Fort"
-          }
-        }
-      }
-    },
-    "settings.alerts.volume.medium" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Medium"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Moyen"
-          }
-        }
-      }
-    },
-    "settings.alerts.volume.soft" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Soft"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Doux"
           }
         }
       }

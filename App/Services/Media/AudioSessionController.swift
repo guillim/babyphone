@@ -1,12 +1,12 @@
 @preconcurrency import AVFoundation
 @preconcurrency import WebRTC
 
-/// Configures the shared audio session, the same way on both phones.
+/// Configures the baby unit's audio session.
 ///
-/// Both sides use the play-and-record category with voice processing, which is
-/// the configuration WebRTC is built and tested for. On the parent phone this
-/// keeps the microphone unit open while connected, so iOS shows its recording
-/// indicator, but the parent's voice is only sent while the talk button is held.
+/// The baby unit uses the play-and-record category with voice processing, which
+/// is the configuration WebRTC is built and tested for: its microphone is always
+/// on, and echo cancellation keeps the parent's voice out of what it sends.
+/// The parent unit manages its own session, in `ParentAudio`.
 ///
 /// The app keeps the session active for as long as monitoring runs. WebRTC
 /// would otherwise release it between two connections, and iOS suspends a

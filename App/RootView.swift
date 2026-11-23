@@ -24,13 +24,13 @@ struct RootView: View {
             ParentPairingView()
         case .monitoring(.baby, let keys):
             if let database = app.database {
-                BabyMonitorView(model: BabyMonitorModel(keys: keys, database: database, media: app.media))
+                BabyMonitorView(model: BabyMonitorModel(keys: keys, database: database, media: app.babyMedia))
                     // A new set of parents means new connections: start from a fresh model.
                     .id(keys.map(\.rendezvousID).joined())
             }
         case .monitoring(.parent, let keys):
             if let database = app.database, let key = keys.first {
-                ParentMonitorView(model: ParentMonitorModel(key: key, database: database, media: app.media))
+                ParentMonitorView(model: ParentMonitorModel(key: key, database: database, media: app.parentMedia, audio: app.parentAudio))
                     .id(key.rendezvousID)
             }
         case .broken:

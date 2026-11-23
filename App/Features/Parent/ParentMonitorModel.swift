@@ -56,7 +56,7 @@ final class ParentMonitorModel: ObservableObject {
     private let settings: SettingsStore
     private let healthLog: HealthLog
     private let media: ParentMedia
-    private let audio = ParentAudio()
+    private let audio: ParentAudio
     private let network = NetworkStatus()
 
     private var connector: ParentConnector?
@@ -71,8 +71,9 @@ final class ParentMonitorModel: ObservableObject {
     private var lastFrameCount: Int?
     private var checksWithoutFrames = 0
 
-    init(key: PairingKey, database: AppDatabase, media: MediaEngine) {
+    init(key: PairingKey, database: AppDatabase, media: MediaEngine, audio: ParentAudio) {
         self.key = key
+        self.audio = audio
         journal = JournalStore(database: database, role: .parent)
         settings = SettingsStore(database: database)
         healthLog = HealthLog(database: database)
@@ -97,11 +98,9 @@ final class ParentMonitorModel: ObservableObject {
         await reloadJournal()
         await loadAlertChoices()
         await AlertNotifier.requestAuthorization()
-        // Asked up front: the audio session opens the microphone unit as soon as a connection starts.
+        // Asked up front, so the first press of the talk button works at once.
         _ = await AVCaptureDevice.requestAccess(for: .audio)
-        try? AudioSessionController.activate()
         audio.start()
-        audio.setVolume(alertPolicy.volume)
         DeviceHealth.startMonitoring()
         network.start { [weak self] in
             Task { @MainActor [weak self] in self?.networkDidChange() }
@@ -157,7 +156,6 @@ final class ParentMonitorModel: ObservableObject {
         alertedEvents = []
         network.stop()
         audio.stop()
-        AudioSessionController.deactivate()
         AlertNotifier.clear()
         connection = .idle
         videoTrack = nil
@@ -192,14 +190,6 @@ final class ParentMonitorModel: ObservableObject {
 
     // MARK: Alert choices
 
-    func setAlarmVolume(_ volume: AlarmVolume) {
-        alertPolicy.volume = volume
-        audio.setVolume(volume)
-        // Lets the parent hear what was chosen.
-        audio.playChime()
-        Task { try? await settings.set(volume.rawValue, for: .alarmVolume) }
-    }
-
     func setAlertTrigger(_ trigger: AlertTrigger) {
         alertPolicy.trigger = trigger
         Task { try? await settings.set(trigger.rawValue, for: .alertTrigger) }
@@ -221,9 +211,6 @@ final class ParentMonitorModel: ObservableObject {
     }
 
     private func loadAlertChoices() async {
-        if let stored = try? await settings.string(for: .alarmVolume), let volume = AlarmVolume(rawValue: stored) {
-            alertPolicy.volume = volume
-        }
         if let stored = try? await settings.string(for: .alertTrigger), let trigger = AlertTrigger(rawValue: stored) {
             alertPolicy.trigger = trigger
         }
@@ -271,6 +258,7 @@ final class ParentMonitorModel: ObservableObject {
         guard isTalking else {
             self.isTalking = false
             media.setTalking(false)
+            audio.setTalking(false)
             send(.talking(false))
             return
         }
@@ -279,6 +267,7 @@ final class ParentMonitorModel: ObservableObject {
             return
         }
         self.isTalking = true
+        audio.setTalking(true)
         media.setTalking(true)
         send(.talking(true))
     }

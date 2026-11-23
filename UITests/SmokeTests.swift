@@ -89,7 +89,7 @@ final class SmokeTests: AppTestCase {
 
         settings.tap()
         // The parent's own choices about alerts come first.
-        XCTAssertTrue(app.descendants(matching: .any)["settings.alerts.volume"].waitForExistence(timeout: timeout))
+        XCTAssertTrue(app.descendants(matching: .any)["settings.alerts.trigger"].waitForExistence(timeout: timeout))
         attachScreenshot(named: "9-settings")
         // On a small screen the rest of the list is further down.
         let diagnostics = app.buttons["settings.diagnostics"]

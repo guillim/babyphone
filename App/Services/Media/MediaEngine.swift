@@ -8,11 +8,14 @@ import Foundation
 final class MediaEngine: @unchecked Sendable {
     let factory: RTCPeerConnectionFactory
 
-    init() {
+    /// `audioDevice` replaces WebRTC's own audio unit. Without one, WebRTC
+    /// plays and records through voice processing, as the baby unit needs.
+    init(audioDevice: (any RTCAudioDevice)? = nil) {
         RTCInitializeSSL()
         factory = RTCPeerConnectionFactory(
             encoderFactory: RTCDefaultVideoEncoderFactory(),
-            decoderFactory: RTCDefaultVideoDecoderFactory()
+            decoderFactory: RTCDefaultVideoDecoderFactory(),
+            audioDevice: audioDevice
         )
     }
 }

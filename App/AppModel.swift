@@ -19,7 +19,10 @@ final class AppModel: ObservableObject {
 
     @Published private(set) var stage = Stage.loading
 
-    let media = MediaEngine()
+    /// Each role has its own media, built on first use: the parent unit plays and records through its own audio.
+    private(set) lazy var babyMedia = MediaEngine()
+    private(set) lazy var parentAudio = ParentAudio()
+    private(set) lazy var parentMedia = MediaEngine(audioDevice: parentAudio)
     private(set) var database: AppDatabase?
 
     var settings: SettingsStore? { database.map(SettingsStore.init) }

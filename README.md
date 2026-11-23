@@ -111,7 +111,7 @@ Not verified, because it needs two real iPhones:
 - The direct IPv6 connection through real home routers and mobile networks.
 - Sound levels. The three noise thresholds in `Sensitivity.swift` are starting values to calibrate.
 - The sound meter and the lullaby sharing the microphone and speaker with WebRTC.
-- Audio routing on real devices. Both devices use the audio configuration WebRTC is built for (play and record, voice processing, loudspeaker). On the parent device iOS therefore shows its microphone indicator while connected, although the voice is only sent while the talk button is held. Switching the parent to playback only is a possible later refinement, in `AudioSessionController.swift`.
+- Audio routing on real devices. The baby device uses the audio configuration WebRTC is built for (play and record, voice processing, loudspeaker). The parent device gives WebRTC its own audio device (`ParentAudio.swift`): the baby's sound plays as plain playback, at the phone's media volume, and the microphone opens only while the talk button is held, with the baby's sound muted for that moment so it is not sent back.
 
 ## Before the first real night
 
