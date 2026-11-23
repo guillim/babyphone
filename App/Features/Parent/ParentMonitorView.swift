@@ -192,11 +192,15 @@ struct ParentMonitorView: View {
         }
         .overlay(alignment: .topTrailing) {
             if model.isConnected, let level = model.status?.batteryLevel {
+                let percent = level.formatted(.percent.precision(.fractionLength(0)))
                 Badge(
-                    text: Text("parent.babyBattery \(level.formatted(.percent.precision(.fractionLength(0))))"),
+                    text: Text(verbatim: percent),
                     systemImage: model.status?.isCharging == true ? "battery.100.bolt" : "battery.50",
                     tint: level < 0.2 && model.status?.isCharging != true ? Theme.alert : Theme.status
                 )
+                // The icon is enough on screen; VoiceOver still says whose battery it is.
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(Text("parent.babyBattery \(percent)"))
                 .padding(10)
             }
         }
