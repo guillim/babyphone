@@ -29,10 +29,19 @@ struct CloudKitRendezvous: RendezvousProvider {
     }
 
     func availability() async -> RendezvousAvailability {
-        switch try? await CKContainer.default().accountStatus() {
-        case .available: .available
-        case .noAccount: .noAccount
-        default: .unavailable
+        let status: CKAccountStatus
+        do {
+            status = try await CKContainer.default().accountStatus()
+        } catch {
+            LinkLog.note("iCloud account status unknown: \(error)")
+            return .unavailable
+        }
+        switch status {
+        case .available: return .available
+        case .noAccount: return .noAccount
+        default:
+            LinkLog.note("iCloud account status \(status.rawValue)")
+            return .unavailable
         }
     }
 

@@ -160,7 +160,10 @@ public actor ParentConnector {
     }
 
     private func connectRemotely() async -> Outcome {
-        guard let rendezvous, await rendezvous.availability() == .available else {
+        guard let rendezvous else { return .unreachable(.rendezvousUnavailable) }
+        let availability = await rendezvous.availability()
+        guard availability == .available else {
+            LinkLog.note("parent unit: rendezvous \(availability)")
             return .unreachable(.rendezvousUnavailable)
         }
         var reason = UnreachableReason.babyOffline
@@ -185,12 +188,28 @@ public actor ParentConnector {
     }
 
     private func freshOffer(from rendezvous: RendezvousClient) async -> (id: UUID, description: String)? {
-        guard
-            let advertisement = try? await rendezvous.fetchPeer(),
-            let description = advertisement.description,
-            advertisement.sessionID != lastAnsweredOffer,
-            Date().timeIntervalSince(advertisement.publishedAt) < timings.offerLifetime.timeInterval
-        else { return nil }
+        let advertisement: EndpointAdvertisement?
+        do {
+            advertisement = try await rendezvous.fetchPeer()
+        } catch {
+            LinkLog.note("parent unit: cannot read the baby unit's record: \(error)")
+            return nil
+        }
+        guard let advertisement else {
+            LinkLog.note("parent unit: no record from the baby unit")
+            return nil
+        }
+        let age = Int(Date().timeIntervalSince(advertisement.publishedAt))
+        guard let description = advertisement.description else {
+            LinkLog.note("parent unit: the baby unit offers nothing (record \(age) s old)")
+            return nil
+        }
+        guard advertisement.sessionID != lastAnsweredOffer else { return nil }
+        guard Date().timeIntervalSince(advertisement.publishedAt) < timings.offerLifetime.timeInterval else {
+            LinkLog.note("parent unit: the baby unit's offer is \(age) s old, too old")
+            return nil
+        }
+        LinkLog.note("parent unit: offer \(age) s old: \(SessionDescriptionInspector.summary(of: description))")
         return (advertisement.sessionID, description)
     }
 
@@ -200,12 +219,15 @@ public actor ParentConnector {
         do {
             let answer = try await session.makeAnswer(to: offer.description)
             try await rendezvous.publish(EndpointAdvertisement(inReplyTo: offer.id, description: answer))
+            LinkLog.note("parent unit: answer published: \(SessionDescriptionInspector.summary(of: answer))")
         } catch {
+            LinkLog.note("parent unit: answer not published: \(error)")
             await link.close()
             return nil
         }
         // From here both phones send to each other at the same time, which opens the firewalls on each side.
         guard await link.waitUntilConnected(timeout: timings.remoteConnect) else {
+            LinkLog.note("parent unit: no direct path to the baby unit")
             await link.close()
             return nil
         }

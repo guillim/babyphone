@@ -56,7 +56,8 @@ final class AppModel: ObservableObject {
     func completePairing(as role: DeviceRole, with key: PairingKey) async {
         // A parent unit follows one baby unit. A baby unit adds the new parent to those it has.
         let keys = role == .baby ? Array((PairingKeychain.load() + [key]).suffix(Self.maxParents)) : [key]
-        PairingKeychain.save(keys)
+        let isSaved = PairingKeychain.save(keys)
+        LinkLog.note("pairing: \(keys.count) key(s) saved in the Keychain: \(isSaved)")
         try? await settings?.set(ISO8601DateFormatter().string(from: Date()), for: .pairedAt)
         stage = .monitoring(role, keys)
     }
@@ -118,6 +119,7 @@ final class AppModel: ObservableObject {
     private func stage(for role: DeviceRole?) -> Stage {
         guard let role else { return .choosingRole }
         let keys = PairingKeychain.load()
+        LinkLog.note("launch: role \(role), \(keys.count) key(s) in the Keychain")
         return keys.isEmpty ? .pairing(role) : .monitoring(role, keys)
     }
 

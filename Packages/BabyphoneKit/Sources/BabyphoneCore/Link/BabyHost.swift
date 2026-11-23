@@ -176,7 +176,9 @@ public actor BabyHost {
                 offer = SessionDescriptionInspector.adding(port, to: offer)
             }
             try await rendezvous.publish(EndpointAdvertisement(sessionID: offerID, description: offer))
+            LinkLog.note("baby unit: offer published: \(SessionDescriptionInspector.summary(of: offer))")
         } catch {
+            LinkLog.note("baby unit: offer not published: \(error)")
             await discard(link)
             throw error
         }
@@ -213,8 +215,11 @@ public actor BabyHost {
                 let answer = reply.description
             else { continue }
             // From here both phones send to each other at the same time, which opens the firewalls on each side.
+            LinkLog.note("baby unit: answer received: \(SessionDescriptionInspector.summary(of: answer))")
             guard (try? await session.accept(answer: answer)) != nil else { return false }
-            return await link.waitUntilConnected(timeout: timings.remoteConnect)
+            let isConnected = await link.waitUntilConnected(timeout: timings.remoteConnect)
+            if !isConnected { LinkLog.note("baby unit: no direct path to the parent unit") }
+            return isConnected
         }
         return false
     }
@@ -286,6 +291,7 @@ public actor BabyHost {
 
     private func set(_ access: RemoteAccess) {
         guard access != remoteAccess else { return }
+        LinkLog.note("baby unit: remote access \(access)")
         remoteAccess = access
         remoteAccessContinuation.yield(access)
     }

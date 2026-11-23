@@ -61,6 +61,13 @@ public enum SessionDescriptionInspector {
             }
     }
 
+    /// Every candidate address with its scope, for the link log.
+    public static func summary(of description: String) -> String {
+        let addresses = candidateAddresses(in: description)
+        guard !addresses.isEmpty else { return "no candidates" }
+        return addresses.map { "\($0) (\(AddressScope.of($0).rawValue))" }.joined(separator: ", ")
+    }
+
     /// Whether `description` lists an address a phone on another network can send to:
     /// a public IPv6 address, or a port the router forwards from its public IPv4 address.
     public static func offersRemotePath(_ description: String) -> Bool {
