@@ -2200,13 +2200,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Low light"
+            "value" : "Night vision"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Pénombre"
+            "value" : "Vision de nuit"
           }
         }
       }
