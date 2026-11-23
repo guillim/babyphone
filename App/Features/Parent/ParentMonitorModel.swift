@@ -17,7 +17,7 @@ final class ParentMonitorModel: ObservableObject {
     @Published private(set) var noiseAlert: JournalEvent?
     /// Set while the "baby is crying" banner is showing.
     @Published private(set) var cryAlert: JournalEvent?
-    /// This parent's choices about alerts: how loud, about what, and whether they are paused.
+    /// This parent's choices about alerts: about what, and whether they are paused.
     @Published private(set) var alertPolicy = AlertPolicy()
     /// The fallback through iCloud, used while no direct link exists.
     @Published private(set) var relay = AlertWatch.State.off
@@ -257,8 +257,9 @@ final class ParentMonitorModel: ObservableObject {
         guard isTalking != self.isTalking, isConnected || !isTalking else { return }
         guard isTalking else {
             self.isTalking = false
-            media.setTalking(false)
+            // The microphone closes first, so the last words still go out.
             audio.setTalking(false)
+            media.setTalking(false)
             send(.talking(false))
             return
         }

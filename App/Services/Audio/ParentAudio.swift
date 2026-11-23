@@ -9,8 +9,8 @@ import os
 ///   voice processing to soften faint sounds, and with the microphone closed,
 ///   so iOS shows no recording indicator.
 /// - The parent's voice is recorded only while the talk button is held. For
-///   that moment the session allows recording, and the baby's room is muted so
-///   it is not sent back to the room it comes from.
+///   that moment the session allows recording, and the baby's room, the chime
+///   and the alarm are muted, so the microphone sends none of them into the room.
 /// - The alert chime and the lost-link alarm go through the same session, not
 ///   through notifications, so they are heard with the phone on silent or in a Focus mode.
 /// - A silent loop keeps the app running in the background between two connections.
@@ -121,13 +121,15 @@ final class ParentAudio: NSObject, RTCAudioDevice, @unchecked Sendable {
     func setTalking(_ isTalking: Bool) {
         queue.async { [self] in
             guard isRunning, isTalking != (capture != nil) else { return }
+            // There is no echo cancellation: what the speaker plays, the microphone would send.
+            playout.setMuted(isTalking)
+            alarmPlayer.volume = isTalking ? 0 : 1
+            chimePlayer.volume = isTalking ? 0 : 1
             if isTalking {
                 configureSession(recording: true)
-                playout.setMuted(true)
                 startCapture()
             } else {
                 stopCapture()
-                playout.setMuted(false)
                 configureSession(recording: false)
             }
         }
@@ -163,6 +165,14 @@ final class ParentAudio: NSObject, RTCAudioDevice, @unchecked Sendable {
         if isAlarmSounding {
             play(alarmBuffer, on: alarmPlayer)
         }
+        // A route change or an interruption stops the microphone's engine too.
+        if let capture, !capture.isRunning {
+            capture.stop()
+            notifyWebRTC { $0.notifyAudioInputInterrupted() }
+            if !capture.start() {
+                Logger(subsystem: "nuzzlecam", category: "audio").error("The microphone could not restart")
+            }
+        }
     }
 
     private func play(_ buffer: AVAudioPCMBuffer?, on player: AVAudioPlayerNode) {
@@ -173,9 +183,11 @@ final class ParentAudio: NSObject, RTCAudioDevice, @unchecked Sendable {
     }
 
     private func startCapture() {
-        let capture = VoiceCapture(sampleRate: Self.sampleRate) { [weak self] samples, timestamp in
-            self?.deliver(samples, at: timestamp)
-        }
+        let capture = VoiceCapture(
+            sampleRate: Self.sampleRate,
+            onSamples: { [weak self] samples, timestamp in self?.deliver(samples, at: timestamp) },
+            onConfigurationChange: { [weak self] in self?.restart() }
+        )
         notifyWebRTC { $0.notifyAudioInputInterrupted() }
         // When the microphone cannot start, the press goes on and nothing is sent.
         if !capture.start() {
@@ -185,7 +197,7 @@ final class ParentAudio: NSObject, RTCAudioDevice, @unchecked Sendable {
     }
 
     private func stopCapture() {
-        capture?.stop()
+        capture?.close()
         capture = nil
     }
 
@@ -354,10 +366,19 @@ private final class VoiceCapture: @unchecked Sendable {
     private let engine = AVAudioEngine()
     private let outputFormat: AVAudioFormat?
     private let onSamples: @Sendable (AVAudioPCMBuffer, AudioTimeStamp) -> Void
+    private var observer: (any NSObjectProtocol)?
 
-    init(sampleRate: Double, onSamples: @escaping @Sendable (AVAudioPCMBuffer, AudioTimeStamp) -> Void) {
+    /// `onConfigurationChange` is called when the system stops this engine, for a new route or format.
+    init(
+        sampleRate: Double,
+        onSamples: @escaping @Sendable (AVAudioPCMBuffer, AudioTimeStamp) -> Void,
+        onConfigurationChange: @escaping @Sendable () -> Void
+    ) {
         outputFormat = AVAudioFormat(commonFormat: .pcmFormatInt16, sampleRate: sampleRate, channels: 1, interleaved: true)
         self.onSamples = onSamples
+        observer = NotificationCenter.default.addObserver(
+            forName: .AVAudioEngineConfigurationChange, object: engine, queue: nil
+        ) { _ in onConfigurationChange() }
     }
 
     func start() -> Bool {
@@ -398,8 +419,21 @@ private final class VoiceCapture: @unchecked Sendable {
         }
     }
 
+    var isRunning: Bool {
+        engine.isRunning
+    }
+
     func stop() {
         engine.inputNode.removeTap(onBus: 0)
         engine.stop()
+    }
+
+    /// Stops for good.
+    func close() {
+        if let observer {
+            NotificationCenter.default.removeObserver(observer)
+        }
+        observer = nil
+        stop()
     }
 }

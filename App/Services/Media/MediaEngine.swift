@@ -51,8 +51,6 @@ final class BabyMedia: @unchecked Sendable {
     func makePeer() -> BabyPeerMedia {
         BabyPeerMedia { [self] in
             let session = try WebRTCSession(factory: engine.factory)
-            // The parent's voice is only played while they hold the talk button.
-            session.setIncomingAudioEnabled(false)
             session.addOutgoingMedia(
                 audio: audioTrack, video: videoTrack,
                 maxVideoBitrate: VideoQuality.maxBitrate, maxFramerate: VideoQuality.framesPerSecond
@@ -95,11 +93,42 @@ final class BabyMedia: @unchecked Sendable {
     }
 }
 
+/// The sessions of one peer's connection attempts that are still alive.
+///
+/// Attempts overlap, and the one that connects is not always the last one
+/// created. Settings therefore go to every live session, and each new session
+/// starts with the settings in force.
+private final class LiveSessions: @unchecked Sendable {
+    private struct Entry {
+        weak var session: WebRTCSession?
+    }
+
+    private let lock = NSLock()
+    private var entries: [Entry] = []
+
+    func add(_ session: WebRTCSession) {
+        lock.withLock {
+            entries = entries.filter { $0.session != nil } + [Entry(session: session)]
+        }
+    }
+
+    var all: [WebRTCSession] {
+        lock.withLock { entries.compactMap(\.session) }
+    }
+
+    var latest: WebRTCSession? {
+        all.last
+    }
+}
+
 /// What the baby unit sends to one parent unit, across that parent's successive connections.
 final class BabyPeerMedia: @unchecked Sendable {
     private let makeSession: @Sendable () throws -> WebRTCSession
+    private let sessions = LiveSessions()
     private let lock = NSLock()
-    private var latestSession: WebRTCSession?
+    // Guarded by `lock`.
+    private var isPlayingParentVoice = false
+    private var isVideoActive = true
 
     fileprivate init(makeSession: @escaping @Sendable () throws -> WebRTCSession) {
         self.makeSession = makeSession
@@ -108,28 +137,35 @@ final class BabyPeerMedia: @unchecked Sendable {
     var sessionFactory: PeerSessionFactory {
         { [self] in
             let session = try makeSession()
-            lock.withLock { latestSession = session }
+            let (isPlaying, isVideoActive) = lock.withLock { (isPlayingParentVoice, self.isVideoActive) }
+            session.setIncomingAudioEnabled(isPlaying)
+            session.setOutgoingVideoActive(isVideoActive)
+            sessions.add(session)
             return session
         }
     }
 
     /// Plays this parent's voice on the speaker, or keeps the baby unit silent.
     func setPlayingParentVoice(_ isPlaying: Bool) {
-        lock.withLock { latestSession }?.setIncomingAudioEnabled(isPlaying)
+        lock.withLock { isPlayingParentVoice = isPlaying }
+        sessions.all.forEach { $0.setIncomingAudioEnabled(isPlaying) }
     }
 
     /// Sends the picture to this parent, or only the sound.
     func setVideoActive(_ isActive: Bool) {
-        lock.withLock { latestSession }?.setOutgoingVideoActive(isActive)
+        lock.withLock { isVideoActive = isActive }
+        sessions.all.forEach { $0.setOutgoingVideoActive(isActive) }
     }
 }
 
 /// Parent-side media: the incoming picture and the microphone used for talk-back.
 final class ParentMedia: @unchecked Sendable {
     private let engine: MediaEngine
+    private let sessions = LiveSessions()
     private let lock = NSLock()
-    private var latestSession: WebRTCSession?
+    // Guarded by `lock`.
     private var microphoneTrack: RTCAudioTrack?
+    private var isTalking = false
 
     init(engine: MediaEngine) {
         self.engine = engine
@@ -138,27 +174,32 @@ final class ParentMedia: @unchecked Sendable {
     var sessionFactory: PeerSessionFactory {
         { [self] in
             let session = try WebRTCSession(factory: engine.factory)
-            lock.withLock { latestSession = session }
+            if let track = lock.withLock({ isTalking ? microphoneTrack : nil }) {
+                session.setOutgoingAudio(track)
+            }
+            sessions.add(session)
             return session
         }
     }
 
     /// The session of the connection attempt in progress, or of the live connection.
     var session: WebRTCSession? {
-        lock.withLock { latestSession }
+        sessions.latest
     }
 
     /// Sends the parent's voice to the baby unit, or stops sending it.
     /// Nothing is sent to the baby unit unless a track is attached.
     func setTalking(_ isTalking: Bool) {
-        let (session, track) = lock.withLock { () -> (WebRTCSession?, RTCAudioTrack?) in
-            if isTalking, microphoneTrack == nil {
-                let noConstraints = RTCMediaConstraints(mandatoryConstraints: nil, optionalConstraints: nil)
-                microphoneTrack = engine.factory.audioTrack(with: engine.factory.audioSource(with: noConstraints), trackId: "parent-voice")
-            }
-            microphoneTrack?.isEnabled = isTalking
-            return (latestSession, isTalking ? microphoneTrack : nil)
+        // Created once, outside the lock: making a track waits for WebRTC's signaling thread.
+        if isTalking, lock.withLock({ microphoneTrack }) == nil {
+            let noConstraints = RTCMediaConstraints(mandatoryConstraints: nil, optionalConstraints: nil)
+            let track = engine.factory.audioTrack(with: engine.factory.audioSource(with: noConstraints), trackId: "parent-voice")
+            lock.withLock { if microphoneTrack == nil { microphoneTrack = track } }
         }
-        session?.setOutgoingAudio(track)
+        let track = lock.withLock { () -> RTCAudioTrack? in
+            self.isTalking = isTalking
+            return isTalking ? microphoneTrack : nil
+        }
+        sessions.all.forEach { $0.setOutgoingAudio(track) }
     }
 }

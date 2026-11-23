@@ -418,6 +418,10 @@ private struct TalkButton: View {
         .onChange(of: isPressed) { isPressed in
             onChange(isPressed && isEnabled)
         }
+        // A press held while the link comes up starts talking then.
+        .onChange(of: isEnabled) { isEnabled in
+            if isPressed { onChange(isEnabled) }
+        }
         .accessibilityElement()
         .accessibilityLabel(Text("parent.talk"))
         .accessibilityAddTraits(.isButton)

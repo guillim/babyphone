@@ -34,6 +34,7 @@ final class BabyMonitorModel: ObservableObject {
         /// This parent asked for sound only. The other parent's picture is not affected.
         var wantsVideo = true
         var isTalking = false
+        private var pendingSilence: Task<Void, Never>?
 
         init(key: PairingKey, media: BabyPeerMedia) {
             self.key = key
@@ -42,6 +43,22 @@ final class BabyMonitorModel: ObservableObject {
 
         var route: LinkRoute? {
             if case .connected(let route) = link { route } else { nil }
+        }
+
+        /// Plays this parent's voice while they hold the talk button. On release the
+        /// speaker stays open a moment longer, for the words still on their way.
+        func setTalking(_ isTalking: Bool, immediately: Bool = false) {
+            self.isTalking = isTalking
+            pendingSilence?.cancel()
+            pendingSilence = nil
+            if isTalking || immediately {
+                media.setPlayingParentVoice(isTalking)
+                return
+            }
+            pendingSilence = Task { [media] in
+                guard (try? await Task.sleep(for: .milliseconds(400))) != nil else { return }
+                media.setPlayingParentVoice(false)
+            }
         }
     }
 
@@ -179,7 +196,7 @@ final class BabyMonitorModel: ObservableObject {
         var hosts: [BabyHost] = []
         for parent in parents {
             parent.wantsVideo = true
-            parent.isTalking = false
+            parent.setTalking(false, immediately: true)
             let rendezvous = RendezvousClient(provider: CloudKitRendezvous(), key: parent.key, role: .baby)
             let host = BabyHost(
                 makeSession: parent.media.sessionFactory,
@@ -424,8 +441,7 @@ final class BabyMonitorModel: ObservableObject {
     private func linkDidChange(to state: BabyHost.State, for parent: Parent) {
         parent.link = state
         if parent.route == nil {
-            parent.isTalking = false
-            parent.media.setPlayingParentVoice(false)
+            parent.setTalking(false, immediately: true)
         }
         connectedRoutes = parents.compactMap(\.route)
         updateCamera()
@@ -460,8 +476,7 @@ final class BabyMonitorModel: ObservableObject {
             detector.sensitivity = sensitivity
             try? await settings.set(sensitivity.rawValue, for: .sensitivity)
         case .talking(let isTalking):
-            parent.isTalking = isTalking
-            parent.media.setPlayingParentVoice(isTalking)
+            parent.setTalking(isTalking)
         }
     }
 

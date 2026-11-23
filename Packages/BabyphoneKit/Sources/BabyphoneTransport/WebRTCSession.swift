@@ -48,6 +48,7 @@ public final class WebRTCSession: NSObject, PeerSession, @unchecked Sendable {
     private var talkBackSender: RTCRtpSender?
     private var videoSender: RTCRtpSender?
     private var isIncomingAudioEnabled = true
+    private var outgoingAudio: RTCAudioTrack?
     // Guarded by `lock`: a copy of what WebRTC reported, readable from any thread.
     private let lock = NSLock()
     private var incomingVideo: RTCVideoTrack?
@@ -102,14 +103,20 @@ public final class WebRTCSession: NSObject, PeerSession, @unchecked Sendable {
     /// Without a track the sender is also deactivated, so no audio stream runs at all.
     public func setOutgoingAudio(_ track: RTCAudioTrack?) {
         queue.async { [self] in
-            guard let talkBackSender else { return }
-            talkBackSender.track = track
-            let parameters = talkBackSender.parameters
-            for encoding in parameters.encodings {
-                encoding.isActive = track != nil
-            }
-            talkBackSender.parameters = parameters
+            outgoingAudio = track
+            applyOutgoingAudio()
         }
+    }
+
+    /// Runs on `queue`.
+    private func applyOutgoingAudio() {
+        guard let talkBackSender else { return }
+        talkBackSender.track = outgoingAudio
+        let parameters = talkBackSender.parameters
+        for encoding in parameters.encodings {
+            encoding.isActive = outgoingAudio != nil
+        }
+        talkBackSender.parameters = parameters
     }
 
     /// Plays the audio received from the other end, or keeps it silent.
@@ -346,12 +353,8 @@ public final class WebRTCSession: NSObject, PeerSession, @unchecked Sendable {
                 var error: NSError?
                 transceiver.setDirection(.sendRecv, error: &error)
                 talkBackSender = transceiver.sender
-                // Nothing is sent until talk-back starts.
-                let parameters = transceiver.sender.parameters
-                for encoding in parameters.encodings {
-                    encoding.isActive = false
-                }
-                transceiver.sender.parameters = parameters
+                // Nothing is sent until talk-back starts, unless it already has.
+                applyOutgoingAudio()
                 transceiver.receiver.track?.isEnabled = isIncomingAudioEnabled
             case .video:
                 let track = transceiver.receiver.track as? RTCVideoTrack
