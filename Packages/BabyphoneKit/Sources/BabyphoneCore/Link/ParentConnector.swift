@@ -228,9 +228,12 @@ public actor ParentConnector {
     /// a search that fails at once, without the local network permission for example, must not spin.
     private func searchLocally(atLeast minimum: Duration) async -> PeerLink? {
         let started = ContinuousClock.now
+        let previous = state
         if let link = await connectLocally() {
             return link
         }
+        // A baby unit found but not connected leaves the state as it was before the look.
+        set(previous)
         let elapsed = ContinuousClock.now - started
         if elapsed < minimum, !Task.isCancelled {
             try? await Task.sleep(for: minimum - elapsed)
