@@ -466,7 +466,11 @@ final class BabyMonitorModel: ObservableObject {
     }
 
     private func handle(_ payload: Data, from parent: Parent) async {
-        guard let message = try? WireCoding.decode(ParentMessage.self, from: payload) else { return }
+        guard let message = try? WireCoding.decode(ParentMessage.self, from: payload) else {
+            LinkLog.note("DIAG baby: undecodable parent payload \(payload.count) bytes")
+            return
+        }
+        LinkLog.note("DIAG baby: received \(message)")
         switch message {
         case .hello(let lastJournalRevision):
             await sendJournal(after: lastJournalRevision, to: parent)

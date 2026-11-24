@@ -199,12 +199,15 @@ struct ParentLiveView: View {
     }
 
     /// Name of the network the picture travels on, as shown beside the room's name.
+    /// The route is fixed when the link is made, but the phone can change network under it:
+    /// a local link keeps running over the mobile network once Wi-Fi drops. So the current
+    /// network decides the name, and the route only tells a remote link from a local one.
     private var networkName: String {
-        guard case .connected(.remote) = model.connection else { return String(localized: "network.wifi") }
+        guard case .connected(let route) = model.connection else { return String(localized: "network.wifi") }
         switch model.networkKind {
         case .cellular(let generation?): return generation
         case .cellular: return String(localized: "network.cellular")
-        default: return String(localized: "network.remote")
+        default: return route == .local ? String(localized: "network.wifi") : String(localized: "network.remote")
         }
     }
 

@@ -71,7 +71,11 @@ public actor PeerLink {
     }
 
     public func send(_ payload: Data) {
-        guard case .connected = phase else { return }
+        guard case .connected = phase else {
+            LinkLog.note("DIAG \(route.rawValue) link: send dropped, phase not connected")
+            return
+        }
+        LinkLog.note("DIAG \(route.rawValue) link: send \(payload.count) bytes")
         session.send(Data([FrameType.payload.rawValue]) + payload)
     }
 

@@ -407,6 +407,7 @@ final class ParentMonitorModel: ObservableObject {
     }
 
     private func send(_ message: ParentMessage) {
+        LinkLog.note("DIAG parent: send \(message) connected=\(isConnected)")
         guard let payload = try? WireCoding.encode(message) else { return }
         Task { await connector?.send(payload) }
     }
