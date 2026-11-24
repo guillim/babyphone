@@ -9,7 +9,7 @@ The name is set in one place, `Config/App.xcconfig`. The Bonjour services, the p
 You need Xcode 16 or later, two iPhones or iPads on iOS 16 or later, and a paid Apple Developer account (CloudKit requires one).
 
 1. Copy `Config/Local.xcconfig.example` to `Config/Local.xcconfig` and put your Team ID in it.
-2. If `com.guillim.babyphone` is not the bundle identifier you want, change it in `Config/App.xcconfig`.
+2. If `com.guillim.nuzzlecam` is not the bundle identifier you want, change it in `Config/App.xcconfig`.
 3. Open `Babyphone.xcodeproj`. Xcode fetches the two dependencies (WebRTC and GRDB) on first open.
 4. Select the `Babyphone` scheme, choose a device, and run. Do the same on the second device.
 
@@ -60,7 +60,7 @@ The decision numbers (D) and proposal numbers (P) are those of version 3 of the 
 | Topic | Choice | Where |
 | --- | --- | --- |
 | App name | NuzzleCam | `Config/App.xcconfig` |
-| Bundle identifier | `com.guillim.babyphone` | `Config/App.xcconfig` |
+| Bundle identifier | `com.guillim.nuzzlecam` | `Config/App.xcconfig` |
 | Devices (D13) | iPhone and iPad, iOS 16 or later, both roles. iPhone in portrait, iPad in any orientation. | `Config/App.xcconfig`, `Config/Info.plist` |
 | Two parents (D11) | The baby unit keeps one key, one Bonjour service, one rendezvous record and one connection per parent. Audio-only is each parent's own choice. Night light, lullaby, white noise, low light and sensitivity are shared. | `BabyMonitorModel.swift` |
 | Strong key under the code (D21) | A password-authenticated key exchange. The parent still types six digits. | `Pairing/PasswordKeyExchange.swift` |
