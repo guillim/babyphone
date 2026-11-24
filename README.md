@@ -9,7 +9,7 @@ The name is set in one place, `Config/App.xcconfig`. The Bonjour services, the p
 You need Xcode 16 or later, two iPhones or iPads on iOS 16 or later, and a paid Apple Developer account (CloudKit requires one).
 
 1. Copy `Config/Local.xcconfig.example` to `Config/Local.xcconfig` and put your Team ID in it.
-2. If `com.guillim.babyphone` is not the bundle identifier you want, change it in `Config/App.xcconfig`.
+2. If `com.guillim.nuzzlecam` is not the bundle identifier you want, change it in `Config/App.xcconfig`.
 3. Open `Babyphone.xcodeproj`. Xcode fetches the two dependencies (WebRTC and GRDB) on first open.
 4. Select the `Babyphone` scheme, choose a device, and run. Do the same on the second device.
 
@@ -60,7 +60,7 @@ The decision numbers (D) and proposal numbers (P) are those of version 3 of the 
 | Topic | Choice | Where |
 | --- | --- | --- |
 | App name | NuzzleCam | `Config/App.xcconfig` |
-| Bundle identifier | `com.guillim.babyphone` | `Config/App.xcconfig` |
+| Bundle identifier | `com.guillim.nuzzlecam` | `Config/App.xcconfig` |
 | Devices (D13) | iPhone and iPad, iOS 16 or later, both roles. iPhone in portrait, iPad in any orientation. | `Config/App.xcconfig`, `Config/Info.plist` |
 | Two parents (D11) | The baby unit keeps one key, one Bonjour service, one rendezvous record and one connection per parent. Audio-only is each parent's own choice. Night light, lullaby, white noise, low light and sensitivity are shared. | `BabyMonitorModel.swift` |
 | Strong key under the code (D21) | A password-authenticated key exchange. The parent still types six digits. | `Pairing/PasswordKeyExchange.swift` |
@@ -118,6 +118,10 @@ Not verified, because it needs two real iPhones:
 1. **Overnight test.** Run both devices for eight hours, then once more with two parents connected. In the morning, open Réglages > Diagnostic réseau on each device and export the night log. It holds one line a minute with battery, temperature and link state. A gap in the parent's lines means iOS suspended the app. For a connection that dropped, plug the device into a Mac, open Console and filter on the subsystem `nuzzlecam`: every decision about the link is traced there.
 2. **IPv6 check.** The same screen says whether the device has a public IPv6 address. Check it on your home Wi-Fi and on 4G or 5G. Without it at home, run « Tester l'ouverture d'un port » on the baby device: it says whether your router can open the IPv4 path instead.
 3. **CloudKit schema.** The record type is created automatically in the Development environment on first use. Before TestFlight, deploy the schema to Production in the CloudKit Console.
+
+## Send it to TestFlight
+
+The TestFlight workflow archives the app and uploads it: Actions tab > TestFlight > Run workflow. It needs four repository secrets, listed at the top of `.github/workflows/testflight.yml`, and the app must already exist in App Store Connect under the bundle identifier. The build number is the run number. It has not run yet: no secret was available when it was written.
 
 ## Tests
 
