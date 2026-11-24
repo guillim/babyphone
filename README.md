@@ -119,6 +119,10 @@ Not verified, because it needs two real iPhones:
 2. **IPv6 check.** The same screen says whether the device has a public IPv6 address. Check it on your home Wi-Fi and on 4G or 5G. Without it at home, run « Tester l'ouverture d'un port » on the baby device: it says whether your router can open the IPv4 path instead.
 3. **CloudKit schema.** The record type is created automatically in the Development environment on first use. Before TestFlight, deploy the schema to Production in the CloudKit Console.
 
+## Send it to TestFlight
+
+The TestFlight workflow archives the app and uploads it: Actions tab > TestFlight > Run workflow. It needs four repository secrets, listed at the top of `.github/workflows/testflight.yml`, and the app must already exist in App Store Connect under the bundle identifier. The build number is the run number. It has not run yet: no secret was available when it was written.
+
 ## Tests
 
 ```sh
