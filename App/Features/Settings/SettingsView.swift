@@ -78,8 +78,10 @@ struct SettingsView: View {
 
                     Section {
                         if let database = app.database {
-                            NavigationLink("diagnostics.title") {
+                            NavigationLink {
                                 DiagnosticsView(database: database, parentModel: parentModel)
+                            } label: {
+                                Label("diagnostics.title", systemImage: "wifi")
                             }
                             .accessibilityIdentifier("settings.diagnostics")
                         }
@@ -88,11 +90,13 @@ struct SettingsView: View {
                     // Kept apart from the alerts: this ends everything, where a pause only quietens.
                     if let parentModel, parentModel.isMonitoring {
                         Section {
-                            Button("settings.stopListening") {
+                            Button {
                                 Task {
                                     await parentModel.stop()
                                     close()
                                 }
+                            } label: {
+                                Label("settings.stopListening", systemImage: "stop.circle")
                             }
                         } footer: {
                             Text("settings.stopListening.footer")
@@ -100,8 +104,16 @@ struct SettingsView: View {
                     }
 
                     Section {
-                        Button("settings.unpair", role: .destructive) { pendingAction = .unpair }
-                        Button("settings.changeRole", role: .destructive) { pendingAction = .changeRole }
+                        Button(role: .destructive) {
+                            pendingAction = .unpair
+                        } label: {
+                            Label("settings.unpair", systemImage: "trash")
+                        }
+                        Button(role: .destructive) {
+                            pendingAction = .changeRole
+                        } label: {
+                            Label("settings.changeRole", systemImage: "arrow.left.arrow.right")
+                        }
                     } footer: {
                         Text("settings.pairing.footer")
                     }
@@ -183,9 +195,11 @@ private struct ParentAlertSection: View {
 
     var body: some View {
         Section {
-            Picker("settings.alerts.trigger", selection: trigger) {
+            Picker(selection: trigger) {
                 Text("settings.alerts.trigger.anyNoise").tag(AlertTrigger.anyNoise)
                 Text("settings.alerts.trigger.cryOnly").tag(AlertTrigger.cryOnly)
+            } label: {
+                Label("settings.alerts.trigger", systemImage: "bell")
             }
             .accessibilityIdentifier("settings.alerts.trigger")
             if model.alertPolicy.trigger == .cryOnly, model.status?.isCryDetectionActive == false {
@@ -195,7 +209,7 @@ private struct ParentAlertSection: View {
             }
             if let until = model.alertPolicy.snoozedUntil {
                 HStack {
-                    Text("parent.snooze.until \(until.formatted(date: .omitted, time: .shortened))")
+                    Label("parent.snooze.until \(until.formatted(date: .omitted, time: .shortened))", systemImage: "bell.slash")
                     Spacer()
                     Button("parent.snooze.resume", action: model.resumeAlerts)
                         .buttonStyle(.borderless)
@@ -207,15 +221,13 @@ private struct ParentAlertSection: View {
                     }
                 } label: {
                     // A menu centres a label that wraps; a row reads from its leading edge.
-                    Text("settings.alerts.snooze")
+                    Label("settings.alerts.snooze", systemImage: "bell.slash")
                         .multilineTextAlignment(.leading)
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
             }
         } header: {
             Text("settings.alerts")
-        } footer: {
-            Text("settings.alerts.footer")
         }
     }
 

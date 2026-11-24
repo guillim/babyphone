@@ -3112,23 +3112,6 @@
         }
       }
     },
-    "settings.alerts.footer" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Alerts play at the phone's volume. Crying is recognised by the device in the baby's room: it is an estimate and can be wrong. A pause never silences the lost-link alarm or the battery alert."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Les alertes sonnent au volume du téléphone. Les pleurs sont reconnus par l'appareil côté bébé : c'est une estimation, qui peut se tromper. Une pause ne coupe jamais l'alarme de liaison perdue ni l'alerte de batterie."
-          }
-        }
-      }
-    },
     "settings.alerts.snooze" : {
       "extractionState" : "manual",
       "localizations" : {
