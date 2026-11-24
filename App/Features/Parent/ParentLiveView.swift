@@ -91,27 +91,53 @@ struct ParentLiveView: View {
 
     // MARK: Link
 
-    /// The room and the state of the link, in one glance.
-    private var linkPill: some View {
+    /// The state of the link, in one glance. When iCloud has something to say,
+    /// a cloud joins it, and a touch opens what it means in full.
+    @ViewBuilder private var linkPill: some View {
+        if let cloud {
+            Button {
+                isShowingDetails = true
+            } label: {
+                linkLabel(cloud: cloud)
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier(model.isConnected ? "parent.live" : "parent.offline")
+        } else {
+            linkLabel(cloud: nil)
+                .accessibilityElement(children: .combine)
+                .accessibilityIdentifier(model.isConnected ? "parent.live" : "parent.offline")
+        }
+    }
+
+    private func linkLabel(cloud: (systemImage: String, title: LocalizedStringKey)?) -> some View {
         HStack(spacing: 8) {
             Circle()
                 .fill(model.isConnected ? Theme.status : Theme.alert)
                 .frame(width: 8, height: 8)
-            Text(verbatim: model.status?.roomName ?? AppInfo.name)
-                .font(Theme.heading(.subheadline))
+            Text(linkText)
+                .font(.subheadline.weight(.semibold))
                 .foregroundStyle(Theme.text)
                 .lineLimit(1)
-            Text(linkText)
-                .font(.footnote)
-                .foregroundStyle(Theme.secondaryText)
-                .lineLimit(1)
-                .layoutPriority(1)
+            if let cloud {
+                Capsule()
+                    .fill(Color.white.opacity(0.16))
+                    .frame(width: 1, height: 16)
+                Image(systemName: cloud.systemImage)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(Theme.accent)
+                    .accessibilityLabel(Text(cloud.title))
+            }
         }
         .padding(.horizontal, 16)
         .frame(minHeight: Theme.minimumTouchTarget)
         .glass(in: Capsule())
-        .accessibilityElement(children: .combine)
-        .accessibilityIdentifier(model.isConnected ? "parent.live" : "parent.offline")
+    }
+
+    /// What iCloud has to say, if anything: it is the only path left, or it is missing.
+    private var cloud: (systemImage: String, title: LocalizedStringKey)? {
+        if hasRelay { return ("icloud", "parent.relay.short") }
+        if model.isRemoteAccessMissing { return ("exclamationmark.icloud", "icloud.missing.short") }
+        return nil
     }
 
     private var linkText: LocalizedStringKey {
@@ -288,7 +314,7 @@ struct ParentLiveView: View {
 
     /// Short facts that need no answer. One touch opens them as full sentences.
     @ViewBuilder private var chips: some View {
-        if hasRelay || isBabyHot || model.isVolumeLow || model.isRemoteAccessMissing {
+        if isBabyHot || model.isVolumeLow {
             Button {
                 isShowingDetails = true
             } label: {
@@ -303,17 +329,11 @@ struct ParentLiveView: View {
     }
 
     @ViewBuilder private var chipList: some View {
-        if hasRelay {
-            Chip(title: "parent.relay.short", systemImage: "icloud", leadsFurther: true)
-        }
         if isBabyHot {
             Chip(title: "parent.babyHot.short", systemImage: "flame.fill", tint: Theme.alert)
         }
         if model.isVolumeLow {
             Chip(title: "parent.volumeLow.short", systemImage: "speaker.wave.1.fill")
-        }
-        if model.isRemoteAccessMissing {
-            Chip(title: "icloud.missing.short", systemImage: "exclamationmark.icloud")
         }
     }
 
@@ -362,8 +382,6 @@ private struct Chip: View {
     let title: LocalizedStringKey
     let systemImage: String
     var tint = Theme.accent
-    /// Takes the room left in its row and shows that more can be read.
-    var leadsFurther = false
 
     var body: some View {
         HStack(spacing: 8) {
@@ -372,12 +390,6 @@ private struct Chip: View {
             Text(title)
                 .foregroundStyle(Theme.text)
                 .lineLimit(1)
-            if leadsFurther {
-                Spacer(minLength: 4)
-                Image(systemName: "chevron.right")
-                    .font(.caption.weight(.bold))
-                    .foregroundStyle(Theme.secondaryText)
-            }
         }
         .font(.footnote.weight(.semibold))
         .padding(.horizontal, 14)

@@ -2370,13 +2370,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "no link"
+            "value" : "No link"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "hors liaison"
+            "value" : "Hors liaison"
           }
         }
       }
