@@ -1,8 +1,7 @@
 import BabyphoneCore
 import SwiftUI
 
-/// The parent unit: the live screen, the journal and the settings, under one
-/// floating bar that also carries the talk button.
+/// The parent unit: the live screen, the journal and the settings, under one floating bar.
 struct ParentMonitorView: View {
     @StateObject private var model: ParentMonitorModel
     @State private var tab = ParentTab.live
@@ -27,13 +26,7 @@ struct ParentMonitorView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         // The bar floats: lists scroll under it, and the picture runs behind it.
         .safeAreaInset(edge: .bottom, spacing: 0) {
-            ParentTabBar(
-                selection: $tab,
-                hasNews: model.cryAlert != nil || model.noiseAlert != nil,
-                isTalking: model.isTalking,
-                canTalk: model.isConnected,
-                onTalk: model.setTalking
-            )
+            ParentTabBar(selection: $tab, hasNews: model.cryAlert != nil || model.noiseAlert != nil)
         }
         .background(Theme.background.ignoresSafeArea())
         .task { await model.start() }

@@ -76,17 +76,6 @@ struct SettingsView: View {
                         ParentAlertSection(model: parentModel)
                     }
 
-                    Section {
-                        if let database = app.database {
-                            NavigationLink {
-                                DiagnosticsView(database: database, parentModel: parentModel)
-                            } label: {
-                                Label("diagnostics.title", systemImage: "wifi")
-                            }
-                            .accessibilityIdentifier("settings.diagnostics")
-                        }
-                    }
-
                     // Kept apart from the alerts: this ends everything, where a pause only quietens.
                     if let parentModel, parentModel.isMonitoring {
                         Section {
@@ -116,6 +105,18 @@ struct SettingsView: View {
                         }
                     } footer: {
                         Text("settings.pairing.footer")
+                    }
+
+                    // Last of what can be touched: the least needed.
+                    Section {
+                        if let database = app.database {
+                            NavigationLink {
+                                DiagnosticsView(database: database, parentModel: parentModel)
+                            } label: {
+                                Label("diagnostics.title", systemImage: "wifi")
+                            }
+                            .accessibilityIdentifier("settings.diagnostics")
+                        }
                     }
 
                     Section {
