@@ -201,10 +201,15 @@ private struct ParentAlertSection: View {
                         .buttonStyle(.borderless)
                 }
             } else if model.isMonitoring {
-                Menu("settings.alerts.snooze") {
+                Menu {
                     ForEach(AlertPolicy.snoozeChoices, id: \.self) { minutes in
                         Button("parent.snooze.minutes \(String(minutes))") { model.snoozeAlerts(minutes: minutes) }
                     }
+                } label: {
+                    // A menu centres a label that wraps; a row reads from its leading edge.
+                    Text("settings.alerts.snooze")
+                        .multilineTextAlignment(.leading)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                 }
             }
         } header: {
