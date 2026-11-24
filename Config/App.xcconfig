@@ -3,7 +3,7 @@
 // Name under the icon.
 APP_DISPLAY_NAME = NuzzleCam
 // Also names the CloudKit container: iCloud.<bundle identifier>.
-PRODUCT_BUNDLE_IDENTIFIER = com.guillim.babyphone
+PRODUCT_BUNDLE_IDENTIFIER = com.guillim.nuzzlecam
 
 MARKETING_VERSION = 0.1.0
 CURRENT_PROJECT_VERSION = 1
