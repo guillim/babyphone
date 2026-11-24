@@ -7,22 +7,6 @@ struct JournalView: View {
 
     var body: some View {
         List {
-            Section {
-                Picker("journal.sensitivity", selection: sensitivity) {
-                    Text("sensitivity.low").tag(Sensitivity.low)
-                    Text("sensitivity.medium").tag(Sensitivity.medium)
-                    Text("sensitivity.high").tag(Sensitivity.high)
-                }
-                .pickerStyle(.segmented)
-                .disabled(!model.isConnected)
-                .accessibilityIdentifier("journal.sensitivity")
-            } header: {
-                Text("journal.sensitivity")
-            } footer: {
-                Text("journal.sensitivity.footer")
-            }
-            .listRowBackground(Theme.card)
-
             if nights.isEmpty {
                 Text("journal.empty")
                     .foregroundStyle(Theme.secondaryText)
@@ -47,10 +31,6 @@ struct JournalView: View {
         .navigationTitle("journal.title")
         .navigationBarTitleDisplayMode(.inline)
         .onAppear(perform: model.dismissNoiseAlert)
-    }
-
-    private var sensitivity: Binding<Sensitivity> {
-        Binding(get: { model.status?.sensitivity ?? .medium }, set: { model.setSensitivity($0) })
     }
 
     /// Events grouped by night, most recent night first.

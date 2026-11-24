@@ -191,13 +191,29 @@ private struct ParentAlertSection: View {
                     .font(.footnote)
                     .foregroundStyle(Theme.alert)
             }
+            Picker(selection: sensitivity) {
+                Text("sensitivity.low").tag(Sensitivity.low)
+                Text("sensitivity.medium").tag(Sensitivity.medium)
+                Text("sensitivity.high").tag(Sensitivity.high)
+            } label: {
+                RowLabel(title: "journal.sensitivity", systemImage: "waveform")
+            }
+            .pickerStyle(.segmented)
+            .disabled(!model.isConnected)
+            .accessibilityIdentifier("journal.sensitivity")
         } header: {
             Text("settings.alerts")
+        } footer: {
+            Text("journal.sensitivity.footer")
         }
     }
 
     private var trigger: Binding<AlertTrigger> {
         Binding(get: { model.alertPolicy.trigger }, set: { model.setAlertTrigger($0) })
+    }
+
+    private var sensitivity: Binding<Sensitivity> {
+        Binding(get: { model.status?.sensitivity ?? .medium }, set: { model.setSensitivity($0) })
     }
 }
 

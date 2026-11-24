@@ -49,13 +49,6 @@ struct ParentLiveView: View {
             .padding(.top, 6)
             .padding(.bottom, 2)
         }
-        .confirmationDialog("parent.whiteNoise.title", isPresented: $isChoosingWhiteNoise, titleVisibility: .visible) {
-            ForEach([15, 30], id: \.self) { minutes in
-                Button("parent.whiteNoise.minutes \(String(minutes))") { model.setWhiteNoise(minutes: minutes) }
-            }
-            Button("parent.whiteNoise.hour") { model.setWhiteNoise(minutes: 60) }
-            Button("common.cancel", role: .cancel) {}
-        }
         .confirmationDialog("parent.snooze.title", isPresented: $isChoosingSnooze, titleVisibility: .visible) {
             ForEach(AlertPolicy.snoozeChoices, id: \.self) { minutes in
                 Button("parent.snooze.minutes \(String(minutes))") { model.snoozeAlerts(minutes: minutes) }
@@ -76,7 +69,7 @@ struct ParentLiveView: View {
                 center: UnitPoint(x: 0.4, y: 0.34), startRadius: 0, endRadius: 480
             )
             if model.isConnected, !isAudioOnly {
-                ZoomableVideo(track: model.videoTrack)
+                VideoView(track: model.videoTrack)
             } else if model.isConnected {
                 VStack(spacing: 8) {
                     Image(systemName: "waveform")
@@ -240,6 +233,22 @@ struct ParentLiveView: View {
                 }
             }
             .accessibilityIdentifier("parent.whiteNoise")
+            .popover(isPresented: $isChoosingWhiteNoise, arrowEdge: .leading) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("parent.whiteNoise.title")
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(Theme.secondaryText)
+                        .padding(.horizontal, 12)
+                        .padding(.top, 8)
+                    ForEach([15, 30], id: \.self) { minutes in
+                        whiteNoiseChoice("parent.whiteNoise.minutes \(String(minutes))") { model.setWhiteNoise(minutes: minutes) }
+                    }
+                    whiteNoiseChoice("parent.whiteNoise.hour") { model.setWhiteNoise(minutes: 60) }
+                }
+                .padding(.bottom, 8)
+                .frame(minWidth: 200)
+                .popoverOnPhone()
+            }
             RailButton(
                 title: "parent.lowLight", systemImage: "moon.fill",
                 isOn: model.status?.isLowLightOn ?? false, action: model.toggleLowLight
@@ -256,8 +265,23 @@ struct ParentLiveView: View {
             .accessibilityIdentifier("parent.audioOnly")
         }
         .padding(6)
-        .glass(in: Capsule())
+        .background(.ultraThinMaterial, in: Capsule())
         .disabled(!model.isConnected)
+    }
+
+    private func whiteNoiseChoice(_ title: LocalizedStringKey, _ action: @escaping @MainActor () -> Void) -> some View {
+        Button {
+            isChoosingWhiteNoise = false
+            action()
+        } label: {
+            Text(title)
+                .font(.body.weight(.semibold))
+                .foregroundStyle(Theme.accent)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 12)
+                .frame(minHeight: Theme.minimumTouchTarget)
+        }
+        .buttonStyle(.plain)
     }
 
     // MARK: Banners
@@ -559,17 +583,18 @@ private struct GlassBanner: View {
     }
 }
 
-/// Stops the monitoring altogether, from the live screen. Sits under the talk button.
+/// Stops the monitoring altogether, from the live screen. Sits under the talk button, at the same size and in the same colours.
 private struct StopButton: View {
     let action: @MainActor () -> Void
 
     var body: some View {
         Button(action: action) {
             Image(systemName: "stop.fill")
-                .font(.body.weight(.semibold))
-                .foregroundStyle(Theme.text)
-                .frame(width: Theme.minimumTouchTarget, height: Theme.minimumTouchTarget)
-                .glass(in: Circle())
+                .font(.title2.weight(.semibold))
+                .foregroundStyle(Theme.accent)
+                .frame(width: 64, height: 64)
+                .background(Theme.accent.opacity(0.14), in: Circle())
+                .glass(in: Circle(), outline: Theme.accent.opacity(0.5))
         }
         .buttonStyle(.plain)
         .accessibilityLabel(Text("parent.stop"))
@@ -577,52 +602,13 @@ private struct StopButton: View {
     }
 }
 
-/// The picture from the room. Pinch to look closer, drag to move around, double-tap to see it all again.
-private struct ZoomableVideo: View {
-    let track: RTCVideoTrack?
-
-    private static let maxZoom: CGFloat = 4
-    @State private var zoom: CGFloat = 1
-    @State private var pinch: CGFloat = 1
-    @State private var offset = CGSize.zero
-    @State private var drag = CGSize.zero
-
-    var body: some View {
-        GeometryReader { proxy in
-            let scale = min(max(zoom * pinch, 1), Self.maxZoom)
-            VideoView(track: track)
-                .scaleEffect(scale)
-                .offset(clamped(CGSize(width: offset.width + drag.width, height: offset.height + drag.height), scale: scale, in: proxy.size))
-                .gesture(
-                    MagnificationGesture()
-                        .onChanged { pinch = $0 }
-                        .onEnded { _ in
-                            zoom = scale
-                            pinch = 1
-                            offset = clamped(offset, scale: zoom, in: proxy.size)
-                        }
-                )
-                .simultaneousGesture(
-                    DragGesture()
-                        .onChanged { if scale > 1 { drag = $0.translation } }
-                        .onEnded { _ in
-                            offset = clamped(CGSize(width: offset.width + drag.width, height: offset.height + drag.height), scale: scale, in: proxy.size)
-                            drag = .zero
-                        }
-                )
-                .onTapGesture(count: 2) {
-                    withAnimation(.easeOut(duration: 0.2)) {
-                        zoom = 1
-                        offset = .zero
-                    }
-                }
+private extension View {
+    /// Keeps the popover a popover on iPhone, where it would otherwise become a sheet.
+    @ViewBuilder func popoverOnPhone() -> some View {
+        if #available(iOS 16.4, *) {
+            presentationCompactAdaptation(.popover)
+        } else {
+            self
         }
-        .clipped()
-    }
-
-    /// Keeps the enlarged picture from sliding off its frame.
-    private func clamped(_ offset: CGSize, scale: CGFloat, in size: CGSize) -> CGSize {
-        let limitX = size.width * (scale - 1) / 2, limitY = size.height * (scale - 1) / 2
-        return CGSize(width: min(max(offset.width, -limitX), limitX), height: min(max(offset.height, -limitY), limitY))
     }
 }

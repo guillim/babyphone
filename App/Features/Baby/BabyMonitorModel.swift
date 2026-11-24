@@ -384,15 +384,34 @@ final class BabyMonitorModel: ObservableObject {
         if !isOn {
             roomLight.setTorch(false)
             nightLight = .off
-        } else if usesFrontCamera || !roomLight.setTorch(true) {
-            nightLight = .screen
-            // The screen is the lamp: let it glow at once rather than after the usual delay.
-            dimming?.cancel()
-            isScreenDimmed = true
+            updateCamera()
+        } else if usesFrontCamera {
+            useScreenAsLamp()
         } else {
+            // The torch only lights while the camera runs, so the camera starts first.
             nightLight = .torch
+            updateCamera()
+            if !roomLight.setTorch(true) { useScreenAsLamp() }
         }
         updateScreen()
+    }
+
+    private func useScreenAsLamp() {
+        nightLight = .screen
+        // The screen is the lamp: let it glow at once rather than after the usual delay.
+        dimming?.cancel()
+        isScreenDimmed = true
+    }
+
+    /// The camera starts asynchronously: the torch is set again once it runs.
+    private func reapplyTorchOnceCameraRuns() {
+        Task { [weak self] in
+            for delay in [500, 1500] {
+                try? await Task.sleep(for: .milliseconds(delay))
+                guard let self, self.nightLight == .torch, self.isCameraRunning else { return }
+                self.roomLight.setTorch(true)
+            }
+        }
     }
 
     /// Plays white noise for `minutes`, or stops it when nil.
@@ -430,10 +449,12 @@ final class BabyMonitorModel: ObservableObject {
         for parent in parents {
             parent.media.setVideoActive(canFilm && parent.wantsVideo)
         }
-        let isWanted = canFilm && parents.contains { $0.route != nil && $0.wantsVideo }
+        // The lamp is the camera's torch: it stays on while the lamp is on, even with no picture watched.
+        let isWanted = canFilm && (nightLight == .torch || parents.contains { $0.route != nil && $0.wantsVideo })
         guard isWanted != isCameraRunning else { return }
         if isWanted {
             isCameraRunning = media.startCamera(position: usesFrontCamera ? .front : .back, lowLight: isLowLightOn)
+            if nightLight == .torch { reapplyTorchOnceCameraRuns() }
         } else {
             media.stopCamera()
             isCameraRunning = false
