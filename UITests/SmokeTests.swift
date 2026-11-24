@@ -84,9 +84,10 @@ final class SmokeTests: AppTestCase {
         XCTAssertTrue(app.otherElements["journal.sensitivity"].waitForExistence(timeout: timeout)
             || app.segmentedControls["journal.sensitivity"].waitForExistence(timeout: 2))
         attachScreenshot(named: "8-journal")
-        let settings = app.buttons["parent.settings"]
-        goBack(in: app, to: settings)
 
+        // The bar under every screen leads to the settings.
+        let settings = app.buttons["parent.settings"]
+        XCTAssertTrue(settings.isHittable)
         settings.tap()
         // The parent's own choices about alerts come first.
         XCTAssertTrue(app.descendants(matching: .any)["settings.alerts.trigger"].waitForExistence(timeout: timeout))

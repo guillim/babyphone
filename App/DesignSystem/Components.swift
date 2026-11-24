@@ -91,30 +91,27 @@ struct SoundMeter: View {
     }
 }
 
-/// A square toggle with an icon and a label, such as "Night light".
-struct ToggleTile: View {
-    let title: LocalizedStringKey
-    let systemImage: String
-    let isOn: Bool
-    let action: @MainActor () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            VStack(spacing: 6) {
-                Image(systemName: systemImage)
-                    .font(.title3)
-                Text(title)
-                    .font(.caption.weight(.semibold))
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.7)
-            }
-            .foregroundStyle(isOn ? Theme.onAccent : Theme.text)
-            .frame(maxWidth: .infinity, minHeight: 64)
-            .background(isOn ? Theme.accent : Theme.card, in: RoundedRectangle(cornerRadius: Theme.cornerRadius))
-            .overlay(RoundedRectangle(cornerRadius: Theme.cornerRadius).stroke(isOn ? Theme.accent : Theme.border))
+extension View {
+    /// The surface of a control that floats over the picture: Liquid Glass where
+    /// the system has it, a blurred material with a hairline before that.
+    /// `outline` draws a coloured rim, for a control that must stand out.
+    @ViewBuilder
+    func glass(in shape: some InsettableShape, outline: Color? = nil) -> some View {
+        #if compiler(>=6.2)
+        if #available(iOS 26.0, *) {
+            glassEffect(.regular, in: shape)
+                .overlay(shape.strokeBorder(outline ?? .clear, lineWidth: 1))
+        } else {
+            materialGlass(in: shape, outline: outline)
         }
-        .buttonStyle(.plain)
-        .accessibilityAddTraits(isOn ? .isSelected : [])
+        #else
+        materialGlass(in: shape, outline: outline)
+        #endif
+    }
+
+    private func materialGlass(in shape: some InsettableShape, outline: Color?) -> some View {
+        background(.ultraThinMaterial, in: shape)
+            .overlay(shape.strokeBorder(outline ?? Color.white.opacity(0.16), lineWidth: 1))
     }
 }
 

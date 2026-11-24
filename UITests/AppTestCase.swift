@@ -43,18 +43,6 @@ class AppTestCase: XCTestCase {
         XCTFail("The field never took keyboard focus")
     }
 
-    /// Leaves a pushed screen, and waits until `landmark` on the screen below is back.
-    ///
-    /// A slow simulator takes its time over the transition, and a tap made during it is lost.
-    func goBack(in app: XCUIApplication, to landmark: XCUIElement) {
-        for _ in 0..<3 {
-            let back = app.navigationBars.buttons.firstMatch
-            if back.waitForExistence(timeout: 5) { back.tap() }
-            if landmark.waitForExistence(timeout: 10) { return }
-        }
-        XCTFail("The app did not return to the previous screen")
-    }
-
     func attachScreenshot(named name: String) {
         let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
         attachment.name = name

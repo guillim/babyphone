@@ -68,7 +68,7 @@ The decision numbers (D) and proposal numbers (P) are those of version 3 of the 
 | Alerts (D18) | A chime for noise and power alerts, and a looping alarm 10 s after an unrecovered link loss. Both play through the app's own audio, so they are heard on silent and in a Focus mode. Notifications only add to this when the app is in the background. | `Audio/ParentAudio.swift` |
 | Noise calibration (D20) | The detector follows the room's steady background level. The presets set how far above it a sound must rise: 8, 15 or 24 dB. | `Monitoring/NoiseDetector.swift` |
 | Power alert (D15) | When the charger is removed, and when the battery falls under 20 % unplugged | `Monitoring/PowerWatch.swift` |
-| Low light and zoom (D16) | Low light slows the camera to 5 frames a second for longer exposures. Zoom is done on the parent's screen, up to 4 times, so each parent zooms independently. | `MediaEngine.swift`, `ParentMonitorView.swift` |
+| Low light and zoom (D16) | Low light slows the camera to 5 frames a second for longer exposures. Zoom is done on the parent's screen, up to 4 times, so each parent zooms independently. | `MediaEngine.swift`, `ParentLiveView.swift` |
 | White noise (D17) | Synthesised by the app, for 15, 30 or 60 minutes | `Audio/ToneSynthesizer.swift` |
 | Failure screen (D19) | Guided fixes: personal hotspot, or mobile data on both sides | `ConnectionFailedView.swift` |
 | Diagnostic view (P1) | Built: iCloud status, public IPv6, addresses, last signal, path in use, manual reconnection, export of the night log | `DiagnosticsView.swift` |

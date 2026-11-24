@@ -93,7 +93,8 @@ final class TwoDeviceTests: AppTestCase {
             "The baby unit's journal did not arrive"
         )
         attachScreenshot(named: "parent-journal")
-        goBack(in: app, to: app.buttons["parent.journal"])
+        app.buttons["parent.tab.live"].tap()
+        XCTAssertTrue(live.waitForExistence(timeout: step), "The live screen did not come back")
 
         // The baby unit stops on purpose: this unit says so, and raises no alarm.
         try "done".write(to: folder.appendingPathComponent("parent-done"), atomically: true, encoding: .utf8)

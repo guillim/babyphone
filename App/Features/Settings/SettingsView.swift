@@ -6,6 +6,9 @@ struct SettingsView: View {
     let role: DeviceRole
     var babyModel: BabyMonitorModel?
     var parentModel: ParentMonitorModel?
+    /// Set where the settings are a screen of their own and not a sheet: called
+    /// in place of dismissing, to go back to where monitoring shows.
+    var onClose: (@MainActor () -> Void)?
 
     @EnvironmentObject private var app: AppModel
     @Environment(\.dismiss) private var dismiss
@@ -77,7 +80,7 @@ struct SettingsView: View {
                         Button("settings.stopListening") {
                             Task {
                                 await parentModel.stop()
-                                dismiss()
+                                close()
                             }
                         }
                     } footer: {
@@ -112,10 +115,13 @@ struct SettingsView: View {
             .navigationTitle("settings.title")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("common.done") {
-                        babyModel?.setRoomName(roomName)
-                        dismiss()
+                // A sheet needs a way out. A screen of its own has the bar under it.
+                if onClose == nil {
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button("common.done") {
+                            babyModel?.setRoomName(roomName)
+                            dismiss()
+                        }
                     }
                 }
             }
@@ -152,8 +158,16 @@ struct SettingsView: View {
         Task {
             await babyModel?.stop()
             await parentModel?.stop()
-            dismiss()
+            close()
             await change()
+        }
+    }
+
+    private func close() {
+        if let onClose {
+            onClose()
+        } else {
+            dismiss()
         }
     }
 }

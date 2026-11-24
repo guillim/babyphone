@@ -19,6 +19,10 @@ enum Theme {
     static let status = Color(hex: 0x6FD3B8)
     static let alert = Color(hex: 0xF28B7D)
     static let nightLight = Color(hex: 0xFFB35C)
+    /// Where the picture goes while none arrives: nearly black, with a faint glow
+    /// so the glass controls have something to sit on.
+    static let pictureBackground = Color(hex: 0x05070D)
+    static let pictureGlow = Color(hex: 0x151C31)
 
     static let cornerRadius: CGFloat = 16
     /// Smallest size of anything the user taps.

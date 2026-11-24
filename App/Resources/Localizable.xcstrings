@@ -1344,6 +1344,23 @@
         }
       }
     },
+    "icloud.missing.short" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not signed in to iCloud"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "iCloud non connecté"
+          }
+        }
+      }
+    },
     "journal.empty" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -2109,6 +2126,23 @@
         }
       }
     },
+    "parent.babyHot.short" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Baby unit running hot"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Côté bébé en surchauffe"
+          }
+        }
+      }
+    },
     "parent.babyStopped.detail" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -2173,6 +2207,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Bébé pleure"
+          }
+        }
+      }
+    },
+    "parent.details.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Monitoring status"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "État de la surveillance"
           }
         }
       }
@@ -2313,6 +2364,57 @@
         }
       }
     },
+    "parent.offline" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "no link"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "hors liaison"
+          }
+        }
+      }
+    },
+    "parent.offline.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No picture or sound for now"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ni image ni son pour l'instant"
+          }
+        }
+      }
+    },
+    "parent.offline.unmonitored" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The room is not being monitored"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La chambre n'est pas surveillée"
+          }
+        }
+      }
+    },
     "parent.paused.detail" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -2428,6 +2530,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "L'unité bébé surveille. Dernière nouvelle à %@."
+          }
+        }
+      }
+    },
+    "parent.relay.short" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Alerts through iCloud"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Alertes via iCloud"
           }
         }
       }
@@ -2557,13 +2676,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Pause"
+            "value" : "Pause alerts"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Pause"
+            "value" : "Pause des alertes"
           }
         }
       }
@@ -2636,19 +2755,19 @@
         }
       }
     },
-    "parent.sound" : {
+    "parent.tab.live" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Sound level"
+            "value" : "Live"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Niveau sonore"
+            "value" : "Direct"
           }
         }
       }
@@ -2700,6 +2819,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Volume très bas : vous risquez de ne rien entendre."
+          }
+        }
+      }
+    },
+    "parent.volumeLow.short" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Volume very low"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Volume très bas"
           }
         }
       }
