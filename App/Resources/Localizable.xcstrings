@@ -2438,13 +2438,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Listening stopped"
+            "value" : "Monitoring stopped"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Écoute arrêtée"
+            "value" : "Surveillance arrêtée"
           }
         }
       }
@@ -2642,13 +2642,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Resume listening"
+            "value" : "Resume monitoring"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Reprendre l'écoute"
+            "value" : "Reprendre la surveillance"
           }
         }
       }
@@ -3135,13 +3135,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Pause alerts"
+            "value" : "Pause noise and cry alerts"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Mettre les alertes en pause"
+            "value" : "Mettre en pause les alertes de bruit et de pleurs"
           }
         }
       }
@@ -3441,13 +3441,30 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Stop listening"
+            "value" : "Stop monitoring"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Arrêter l'écoute"
+            "value" : "Arrêter la surveillance"
+          }
+        }
+      }
+    },
+    "settings.stopListening.footer" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Turns off the picture, the sound and every alert, until you resume."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Coupe l'image, le son et toutes les alertes, jusqu'à ce que vous repreniez."
           }
         }
       }

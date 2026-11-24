@@ -76,6 +76,16 @@ struct SettingsView: View {
                         ParentAlertSection(model: parentModel)
                     }
 
+                    Section {
+                        if let database = app.database {
+                            NavigationLink("diagnostics.title") {
+                                DiagnosticsView(database: database, parentModel: parentModel)
+                            }
+                            .accessibilityIdentifier("settings.diagnostics")
+                        }
+                    }
+
+                    // Kept apart from the alerts: this ends everything, where a pause only quietens.
                     if let parentModel, parentModel.isMonitoring {
                         Section {
                             Button("settings.stopListening") {
@@ -85,16 +95,7 @@ struct SettingsView: View {
                                 }
                             }
                         } footer: {
-                            Text("parent.paused.detail")
-                        }
-                    }
-
-                    Section {
-                        if let database = app.database {
-                            NavigationLink("diagnostics.title") {
-                                DiagnosticsView(database: database, parentModel: parentModel)
-                            }
-                            .accessibilityIdentifier("settings.diagnostics")
+                            Text("settings.stopListening.footer")
                         }
                     }
 
