@@ -110,6 +110,7 @@ final class AppModel: ObservableObject {
         let parts = state.split(separator: "-")
         let role = parts.first.flatMap { DeviceRole(rawValue: String($0)) }
         try? await settings?.set(role?.rawValue, for: .role)
+        try? await settings?.set(nil, for: .isMonitoring)
         if parts.contains("paired") {
             PairingKeychain.save([.random()])
         }

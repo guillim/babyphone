@@ -11,6 +11,8 @@ public struct SettingsStore: Sendable {
         case pairedAt
         /// Parent unit: alert on any noise, or on crying only.
         case alertTrigger
+        /// Baby unit: monitoring was on and nobody stopped it, so it resumes when the app starts again.
+        case isMonitoring
     }
 
     private let database: AppDatabase

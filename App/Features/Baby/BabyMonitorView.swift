@@ -27,6 +27,7 @@ struct BabyMonitorView: View {
         .simultaneousGesture(TapGesture().onEnded { model.registerTouch() })
         .task {
             await model.loadSettings()
+            await model.resumeIfInterrupted()
             #if DEBUG
             await TestHarness.runBabySession(with: model)
             #endif

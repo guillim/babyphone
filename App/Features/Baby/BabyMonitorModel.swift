@@ -148,6 +148,14 @@ final class BabyMonitorModel: ObservableObject {
 
     // MARK: Monitoring
 
+    /// Starts monitoring again when the app ended without anyone stopping it:
+    /// an iOS update, a restart, the system closing the app in the night.
+    func resumeIfInterrupted() async {
+        guard (try? await settings.string(for: .isMonitoring)) != nil else { return }
+        LinkLog.note("baby unit: monitoring resumes after the app restarted")
+        await start()
+    }
+
     func start() async {
         guard !isMonitoring else { return }
         startFailure = nil
@@ -167,6 +175,7 @@ final class BabyMonitorModel: ObservableObject {
         }
 
         isMonitoring = true
+        try? await settings.set("1", for: .isMonitoring)
         isInBackground = false
         detector.recalibrate()
         cryDetector = CryDetector()
@@ -251,6 +260,8 @@ final class BabyMonitorModel: ObservableObject {
     func stop() async {
         guard isMonitoring else { return }
         isMonitoring = false
+        // Every caller is someone stopping on purpose: the app ending never comes through here.
+        try? await settings.set(nil, for: .isMonitoring)
         tasks.forEach { $0.cancel() }
         tasks = []
         lifecycleObservers.forEach { NotificationCenter.default.removeObserver($0) }
