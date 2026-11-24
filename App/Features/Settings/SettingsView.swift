@@ -32,86 +32,90 @@ struct SettingsView: View {
     var body: some View {
         NavigationStack {
             Form {
-                if let babyModel {
-                    Section {
-                        TextField("settings.roomName", text: $roomName)
-                            .onSubmit { babyModel.setRoomName(roomName) }
-                        Picker("settings.camera", selection: $usesFrontCamera) {
-                            Text("settings.camera.back").tag(false)
-                            Text("settings.camera.front").tag(true)
+                Group {
+                    if let babyModel {
+                        Section {
+                            TextField("settings.roomName", text: $roomName)
+                                .onSubmit { babyModel.setRoomName(roomName) }
+                            Picker("settings.camera", selection: $usesFrontCamera) {
+                                Text("settings.camera.back").tag(false)
+                                Text("settings.camera.front").tag(true)
+                            }
+                            .onChange(of: usesFrontCamera) { babyModel.setUsesFrontCamera($0) }
+                        } header: {
+                            Text("settings.room")
+                        } footer: {
+                            Text("settings.camera.footer")
                         }
-                        .onChange(of: usesFrontCamera) { babyModel.setUsesFrontCamera($0) }
-                    } header: {
-                        Text("settings.room")
-                    } footer: {
-                        Text("settings.camera.footer")
-                    }
 
-                    Section {
-                        ForEach(Array(parentKeys.enumerated()), id: \.element.rendezvousID) { index, key in
-                            HStack {
-                                Text("settings.parent \(String(index + 1))")
-                                Spacer()
-                                Button("settings.removeParent", role: .destructive) {
-                                    leave { app.removeParent(key) }
+                        Section {
+                            ForEach(Array(parentKeys.enumerated()), id: \.element.rendezvousID) { index, key in
+                                HStack {
+                                    Text("settings.parent \(String(index + 1))")
+                                    Spacer()
+                                    Button("settings.removeParent", role: .destructive) {
+                                        leave { app.removeParent(key) }
+                                    }
+                                    .buttonStyle(.borderless)
                                 }
-                                .buttonStyle(.borderless)
                             }
-                        }
-                        if parentKeys.count < AppModel.maxParents {
-                            Button("settings.addParent") {
-                                leave { app.addParent() }
+                            if parentKeys.count < AppModel.maxParents {
+                                Button("settings.addParent") {
+                                    leave { app.addParent() }
+                                }
+                                .accessibilityIdentifier("settings.addParent")
                             }
-                            .accessibilityIdentifier("settings.addParent")
+                        } header: {
+                            Text("settings.parents")
+                        } footer: {
+                            Text("settings.parents.footer")
                         }
-                    } header: {
-                        Text("settings.parents")
-                    } footer: {
-                        Text("settings.parents.footer")
                     }
-                }
 
-                if let parentModel {
-                    ParentAlertSection(model: parentModel)
-                }
+                    if let parentModel {
+                        ParentAlertSection(model: parentModel)
+                    }
 
-                if let parentModel, parentModel.isMonitoring {
+                    if let parentModel, parentModel.isMonitoring {
+                        Section {
+                            Button("settings.stopListening") {
+                                Task {
+                                    await parentModel.stop()
+                                    close()
+                                }
+                            }
+                        } footer: {
+                            Text("parent.paused.detail")
+                        }
+                    }
+
                     Section {
-                        Button("settings.stopListening") {
-                            Task {
-                                await parentModel.stop()
-                                close()
+                        if let database = app.database {
+                            NavigationLink("diagnostics.title") {
+                                DiagnosticsView(database: database, parentModel: parentModel)
                             }
+                            .accessibilityIdentifier("settings.diagnostics")
+                        }
+                    }
+
+                    Section {
+                        Button("settings.unpair", role: .destructive) { pendingAction = .unpair }
+                        Button("settings.changeRole", role: .destructive) { pendingAction = .changeRole }
+                    } footer: {
+                        Text("settings.pairing.footer")
+                    }
+
+                    Section {
+                        InfoRow(title: "settings.version") {
+                            Text(verbatim: Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "")
                         }
                     } footer: {
-                        Text("parent.paused.detail")
+                        Text("role.footer")
                     }
                 }
-
-                Section {
-                    if let database = app.database {
-                        NavigationLink("diagnostics.title") {
-                            DiagnosticsView(database: database, parentModel: parentModel)
-                        }
-                        .accessibilityIdentifier("settings.diagnostics")
-                    }
-                }
-
-                Section {
-                    Button("settings.unpair", role: .destructive) { pendingAction = .unpair }
-                    Button("settings.changeRole", role: .destructive) { pendingAction = .changeRole }
-                } footer: {
-                    Text("settings.pairing.footer")
-                }
-
-                Section {
-                    InfoRow(title: "settings.version") {
-                        Text(verbatim: Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "")
-                    }
-                } footer: {
-                    Text("role.footer")
-                }
+                .listRowBackground(Theme.card)
             }
+            .themedList()
             .navigationTitle("settings.title")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

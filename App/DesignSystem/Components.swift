@@ -116,6 +116,13 @@ extension View {
 }
 
 extension View {
+    /// Puts a list or a form on the app's own background, in place of the system's.
+    /// Its rows take the card colour with `listRowBackground(Theme.card)`.
+    func themedList() -> some View {
+        scrollContentBackground(.hidden)
+            .background(Theme.background.ignoresSafeArea())
+    }
+
     /// Keeps content at a comfortable width and centres it, so a screen built for
     /// an iPhone does not stretch across an iPad.
     func readableWidth(_ maxWidth: CGFloat = 560) -> some View {

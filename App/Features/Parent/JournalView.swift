@@ -43,8 +43,7 @@ struct JournalView: View {
                 .listRowBackground(Theme.card)
             }
         }
-        .scrollContentBackground(.hidden)
-        .background(Theme.background.ignoresSafeArea())
+        .themedList()
         .navigationTitle("journal.title")
         .navigationBarTitleDisplayMode(.inline)
         .onAppear(perform: model.dismissNoiseAlert)

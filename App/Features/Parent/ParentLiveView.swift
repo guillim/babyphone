@@ -437,7 +437,7 @@ private struct GlassBanner: View {
         .padding(.leading, 12)
         .padding(.trailing, secondaryTitle == nil ? 6 : 12)
         .padding(.vertical, secondaryTitle == nil ? 6 : 12)
-        .glass(in: RoundedRectangle(cornerRadius: 26, style: .continuous), outline: Theme.alert.opacity(0.55))
+        .glass(in: RoundedRectangle(cornerRadius: Theme.cornerRadius, style: .continuous), outline: Theme.alert.opacity(0.55))
     }
 
     private var primaryButton: some View {

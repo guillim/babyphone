@@ -24,7 +24,8 @@ enum Theme {
     static let pictureBackground = Color(hex: 0x05070D)
     static let pictureGlow = Color(hex: 0x151C31)
 
-    static let cornerRadius: CGFloat = 16
+    /// Cards, buttons and banners share one radius, close to the roundness of the glass controls.
+    static let cornerRadius: CGFloat = 24
     /// Smallest size of anything the user taps.
     static let minimumTouchTarget: CGFloat = 44
 

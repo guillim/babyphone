@@ -18,62 +18,66 @@ struct DiagnosticsView: View {
 
     var body: some View {
         List {
-            Section {
-                InfoRow(title: "diagnostics.icloud") { Text(cloudText) }
-                    .accessibilityIdentifier("diagnostics.icloud")
-                InfoRow(title: "diagnostics.ipv6") { Text(hasGlobalIPv6 ? "common.yes" : "common.no") }
-            } header: {
-                Text("diagnostics.remote")
-            } footer: {
-                Text(hasGlobalIPv6 ? "diagnostics.ipv6.present" : "diagnostics.ipv6.missing")
-            }
-
-            Section {
-                if let routerPort {
-                    Text(routerText(for: routerPort))
-                        .accessibilityIdentifier("diagnostics.router.result")
+            Group {
+                Section {
+                    InfoRow(title: "diagnostics.icloud") { Text(cloudText) }
+                        .accessibilityIdentifier("diagnostics.icloud")
+                    InfoRow(title: "diagnostics.ipv6") { Text(hasGlobalIPv6 ? "common.yes" : "common.no") }
+                } header: {
+                    Text("diagnostics.remote")
+                } footer: {
+                    Text(hasGlobalIPv6 ? "diagnostics.ipv6.present" : "diagnostics.ipv6.missing")
                 }
-                Button("diagnostics.router.test") {
-                    Task { await testRouter() }
-                }
-                .disabled(isTestingRouter)
-                .accessibilityIdentifier("diagnostics.router.test")
-            } header: {
-                Text("diagnostics.router")
-            } footer: {
-                Text("diagnostics.router.footer")
-            }
 
-            if let parentModel {
-                ParentLinkSection(model: parentModel, path: path)
-            }
-
-            Section("diagnostics.addresses") {
-                if addresses.isEmpty {
-                    Text("diagnostics.addresses.none")
-                        .foregroundStyle(Theme.secondaryText)
+                Section {
+                    if let routerPort {
+                        Text(routerText(for: routerPort))
+                            .accessibilityIdentifier("diagnostics.router.result")
+                    }
+                    Button("diagnostics.router.test") {
+                        Task { await testRouter() }
+                    }
+                    .disabled(isTestingRouter)
+                    .accessibilityIdentifier("diagnostics.router.test")
+                } header: {
+                    Text("diagnostics.router")
+                } footer: {
+                    Text("diagnostics.router.footer")
                 }
-                ForEach(addresses) { address in
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(verbatim: address.address)
-                            .font(.footnote.monospaced())
-                        Text(verbatim: "\(address.interface) · \(address.scope.rawValue)")
-                            .font(.caption)
+
+                if let parentModel {
+                    ParentLinkSection(model: parentModel, path: path)
+                }
+
+                Section("diagnostics.addresses") {
+                    if addresses.isEmpty {
+                        Text("diagnostics.addresses.none")
                             .foregroundStyle(Theme.secondaryText)
                     }
+                    ForEach(addresses) { address in
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(verbatim: address.address)
+                                .font(.footnote.monospaced())
+                            Text(verbatim: "\(address.interface) · \(address.scope.rawValue)")
+                                .font(.caption)
+                                .foregroundStyle(Theme.secondaryText)
+                        }
+                    }
                 }
-            }
 
-            Section {
-                if let healthExport {
-                    ShareLink("diagnostics.health.export", item: healthExport)
+                Section {
+                    if let healthExport {
+                        ShareLink("diagnostics.health.export", item: healthExport)
+                    }
+                } header: {
+                    Text("diagnostics.health")
+                } footer: {
+                    Text("diagnostics.health.footer")
                 }
-            } header: {
-                Text("diagnostics.health")
-            } footer: {
-                Text("diagnostics.health.footer")
             }
+            .listRowBackground(Theme.card)
         }
+        .themedList()
         .navigationTitle("diagnostics.title")
         .navigationBarTitleDisplayMode(.inline)
         .refreshable { await refresh() }
