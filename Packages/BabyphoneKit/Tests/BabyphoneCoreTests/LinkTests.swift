@@ -18,8 +18,18 @@ import TestSupport
         return (first, second, offerer, answerer)
     }
 
+    /// A silence timeout a busy test machine cannot miss by accident: the fast one,
+    /// 200 ms, was sometimes exceeded by a scheduling pause alone, and the link then
+    /// ended as silent before the test had done anything. For every test that is not
+    /// about silence itself.
+    private var patientTimings: LinkTimings {
+        var timings = LinkTimings.fast
+        timings.silenceTimeout = .seconds(1)
+        return timings
+    }
+
     @Test func deliversPayloadsBothWays() async throws {
-        let (first, second, _, _) = try await connectedPair()
+        let (first, second, _, _) = try await connectedPair(timings: patientTimings)
         await first.send(Data("ping".utf8))
         await second.send(Data("pong".utf8))
 
@@ -28,11 +38,7 @@ import TestSupport
     }
 
     @Test func staysUpWhileKeepalivesFlow() async throws {
-        // A silence timeout a busy test machine cannot miss by accident: the fast one,
-        // 200 ms, was sometimes exceeded by a scheduling pause alone.
-        var timings = LinkTimings.fast
-        timings.silenceTimeout = .seconds(1)
-        let (first, second, _, _) = try await connectedPair(timings: timings)
+        let (first, second, _, _) = try await connectedPair(timings: patientTimings)
         // Several silence timeouts pass with no application traffic at all.
         try await Task.sleep(for: .seconds(3))
         await first.send(Data([1]))
@@ -47,7 +53,7 @@ import TestSupport
     }
 
     @Test func endsWhenTheSessionFails() async throws {
-        let (first, _, offerer, _) = try await connectedPair()
+        let (first, _, offerer, _) = try await connectedPair(timings: patientTimings)
         offerer.fail()
         #expect(await value { await first.waitUntilEnded() } == .failed)
         #expect(offerer.isClosed)
