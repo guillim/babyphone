@@ -60,8 +60,9 @@ final class BabyMedia: @unchecked Sendable {
     }
 
     /// Starts the camera facing `position`. Returns false when that camera cannot be used.
+    /// The camera starts asynchronously: `onRunning` is called, off the main thread, once it runs.
     @discardableResult
-    func startCamera(position: AVCaptureDevice.Position, lowLight: Bool) -> Bool {
+    func startCamera(position: AVCaptureDevice.Position, lowLight: Bool, onRunning: @escaping @Sendable () -> Void) -> Bool {
         guard
             AVCaptureDevice.authorizationStatus(for: .video) == .authorized,
             let device = RTCCameraVideoCapturer.captureDevices().first(where: { $0.position == position }),
@@ -71,9 +72,11 @@ final class BabyMedia: @unchecked Sendable {
         let fastestRate = format.videoSupportedFrameRateRanges.map(\.maxFrameRate).max() ?? 30
         capturer.startCapture(with: device, format: format, fps: min(wanted, Int(fastestRate))) { _ in
             // Where the sensor supports it, the system brightens a dim picture by itself.
-            guard device.isLowLightBoostSupported, (try? device.lockForConfiguration()) != nil else { return }
-            device.automaticallyEnablesLowLightBoostWhenAvailable = lowLight
-            device.unlockForConfiguration()
+            if device.isLowLightBoostSupported, (try? device.lockForConfiguration()) != nil {
+                device.automaticallyEnablesLowLightBoostWhenAvailable = lowLight
+                device.unlockForConfiguration()
+            }
+            onRunning()
         }
         return true
     }

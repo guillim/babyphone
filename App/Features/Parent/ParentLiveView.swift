@@ -1,6 +1,5 @@
 import BabyphoneCore
 import SwiftUI
-@preconcurrency import WebRTC
 
 /// The live screen of the parent unit. The picture fills it from edge to edge,
 /// and everything else floats over it on glass: the state of the link, the
@@ -240,10 +239,7 @@ struct ParentLiveView: View {
                         .foregroundStyle(Theme.secondaryText)
                         .padding(.horizontal, 12)
                         .padding(.top, 8)
-                    ForEach([15, 30], id: \.self) { minutes in
-                        whiteNoiseChoice("parent.whiteNoise.minutes \(String(minutes))") { model.setWhiteNoise(minutes: minutes) }
-                    }
-                    whiteNoiseChoice("parent.whiteNoise.hour") { model.setWhiteNoise(minutes: 60) }
+                    ForEach([15, 30, 60], id: \.self, content: whiteNoiseChoice)
                 }
                 .padding(.bottom, 8)
                 .frame(minWidth: 200)
@@ -265,16 +261,17 @@ struct ParentLiveView: View {
             .accessibilityIdentifier("parent.audioOnly")
         }
         .padding(6)
+        // A plain material, not `glass`: Liquid Glass around the rail swallowed its buttons' taps after an alert.
         .background(.ultraThinMaterial, in: Capsule())
         .disabled(!model.isConnected)
     }
 
-    private func whiteNoiseChoice(_ title: LocalizedStringKey, _ action: @escaping @MainActor () -> Void) -> some View {
+    private func whiteNoiseChoice(minutes: Int) -> some View {
         Button {
             isChoosingWhiteNoise = false
-            action()
+            model.setWhiteNoise(minutes: minutes)
         } label: {
-            Text(title)
+            Text(minutes == 60 ? "parent.whiteNoise.hour" : "parent.whiteNoise.minutes \(String(minutes))")
                 .font(.body.weight(.semibold))
                 .foregroundStyle(Theme.accent)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -404,9 +401,7 @@ private struct TalkButton: View {
         Image(systemName: isTalking ? "mic.fill" : "mic")
             .font(.title2.weight(.semibold))
             .foregroundStyle(isTalking ? Theme.onAccent : Theme.accent)
-            .frame(width: 64, height: 64)
-            .background(isTalking ? Theme.status : Theme.accent.opacity(0.14), in: Circle())
-            .glass(in: Circle(), outline: Theme.accent.opacity(0.5))
+            .mainActionSurface(fill: isTalking ? Theme.status : Theme.accent.opacity(0.14))
             .opacity(isEnabled ? 1 : 0.5)
             .scaleEffect(isTalking ? 1.08 : 1)
             .animation(.easeOut(duration: 0.12), value: isTalking)
@@ -583,7 +578,7 @@ private struct GlassBanner: View {
     }
 }
 
-/// Stops the monitoring altogether, from the live screen. Sits under the talk button, at the same size and in the same colours.
+/// Stops the monitoring altogether, from the live screen. Sits under the talk button, on the same surface.
 private struct StopButton: View {
     let action: @MainActor () -> Void
 
@@ -592,9 +587,7 @@ private struct StopButton: View {
             Image(systemName: "stop.fill")
                 .font(.title2.weight(.semibold))
                 .foregroundStyle(Theme.accent)
-                .frame(width: 64, height: 64)
-                .background(Theme.accent.opacity(0.14), in: Circle())
-                .glass(in: Circle(), outline: Theme.accent.opacity(0.5))
+                .mainActionSurface()
         }
         .buttonStyle(.plain)
         .accessibilityLabel(Text("parent.stop"))
@@ -603,6 +596,13 @@ private struct StopButton: View {
 }
 
 private extension View {
+    /// The round surface the talk and stop buttons share, larger than the rail's.
+    func mainActionSurface(fill: Color = Theme.accent.opacity(0.14)) -> some View {
+        frame(width: 64, height: 64)
+            .background(fill, in: Circle())
+            .glass(in: Circle(), outline: Theme.accent.opacity(0.5))
+    }
+
     /// Keeps the popover a popover on iPhone, where it would otherwise become a sheet.
     @ViewBuilder func popoverOnPhone() -> some View {
         if #available(iOS 16.4, *) {

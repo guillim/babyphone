@@ -139,11 +139,16 @@ final class BabyMonitorModel: ObservableObject {
         guard usesFront != usesFrontCamera else { return }
         usesFrontCamera = usesFront
         Task { try? await settings.set(usesFront ? "1" : "0", for: .usesFrontCamera) }
+        // Stopped first, so that the lamp and the picture start the other camera once between them.
+        if isCameraRunning {
+            media.stopCamera()
+            isCameraRunning = false
+        }
         if nightLight != .off {
             setNightLight(false)
             setNightLight(true)
         }
-        restartCameraIfRunning()
+        updateCamera()
     }
 
     // MARK: Monitoring
@@ -384,7 +389,6 @@ final class BabyMonitorModel: ObservableObject {
         if !isOn {
             roomLight.setTorch(false)
             nightLight = .off
-            updateCamera()
         } else if usesFrontCamera {
             useScreenAsLamp()
         } else {
@@ -393,6 +397,7 @@ final class BabyMonitorModel: ObservableObject {
             updateCamera()
             if !roomLight.setTorch(true) { useScreenAsLamp() }
         }
+        updateCamera()
         updateScreen()
     }
 
@@ -401,17 +406,6 @@ final class BabyMonitorModel: ObservableObject {
         // The screen is the lamp: let it glow at once rather than after the usual delay.
         dimming?.cancel()
         isScreenDimmed = true
-    }
-
-    /// The camera starts asynchronously: the torch is set again once it runs.
-    private func reapplyTorchOnceCameraRuns() {
-        Task { [weak self] in
-            for delay in [500, 1500] {
-                try? await Task.sleep(for: .milliseconds(delay))
-                guard let self, self.nightLight == .torch, self.isCameraRunning else { return }
-                self.roomLight.setTorch(true)
-            }
-        }
     }
 
     /// Plays white noise for `minutes`, or stops it when nil.
@@ -443,7 +437,7 @@ final class BabyMonitorModel: ObservableObject {
         updateCamera()
     }
 
-    /// The camera only runs while a parent unit is watching: it is what heats the device.
+    /// The camera only runs while a parent unit is watching or the torch is the lamp: it is what heats the device.
     private func updateCamera() {
         let canFilm = isCameraAllowed && !isInBackground
         for parent in parents {
@@ -453,8 +447,13 @@ final class BabyMonitorModel: ObservableObject {
         let isWanted = canFilm && (nightLight == .torch || parents.contains { $0.route != nil && $0.wantsVideo })
         guard isWanted != isCameraRunning else { return }
         if isWanted {
-            isCameraRunning = media.startCamera(position: usesFrontCamera ? .front : .back, lowLight: isLowLightOn)
-            if nightLight == .torch { reapplyTorchOnceCameraRuns() }
+            isCameraRunning = media.startCamera(position: usesFrontCamera ? .front : .back, lowLight: isLowLightOn) { [weak self] in
+                // The camera starts asynchronously, and the torch only takes once it runs.
+                Task { @MainActor in
+                    guard let self, self.nightLight == .torch, self.isCameraRunning else { return }
+                    self.roomLight.setTorch(true)
+                }
+            }
         } else {
             media.stopCamera()
             isCameraRunning = false
