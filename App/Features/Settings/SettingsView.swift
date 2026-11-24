@@ -85,7 +85,7 @@ struct SettingsView: View {
                                     close()
                                 }
                             } label: {
-                                Label("settings.stopListening", systemImage: "stop.circle")
+                                RowLabel(title: "settings.stopListening", systemImage: "stop.circle")
                             }
                         } footer: {
                             Text("settings.stopListening.footer")
@@ -96,15 +96,13 @@ struct SettingsView: View {
                         Button(role: .destructive) {
                             pendingAction = .unpair
                         } label: {
-                            Label("settings.unpair", systemImage: "trash")
+                            RowLabel(title: "settings.unpair", systemImage: "trash", isDestructive: true)
                         }
                         Button(role: .destructive) {
                             pendingAction = .changeRole
                         } label: {
-                            Label("settings.changeRole", systemImage: "arrow.left.arrow.right")
+                            RowLabel(title: "settings.changeRole", systemImage: "arrow.left.arrow.right", isDestructive: true)
                         }
-                    } footer: {
-                        Text("settings.pairing.footer")
                     }
 
                     // Last of what can be touched: the least needed.
@@ -113,7 +111,7 @@ struct SettingsView: View {
                             NavigationLink {
                                 DiagnosticsView(database: database, parentModel: parentModel)
                             } label: {
-                                Label("diagnostics.title", systemImage: "wifi")
+                                RowLabel(title: "diagnostics.title", systemImage: "wifi")
                             }
                             .accessibilityIdentifier("settings.diagnostics")
                         }
@@ -200,7 +198,7 @@ private struct ParentAlertSection: View {
                 Text("settings.alerts.trigger.anyNoise").tag(AlertTrigger.anyNoise)
                 Text("settings.alerts.trigger.cryOnly").tag(AlertTrigger.cryOnly)
             } label: {
-                Label("settings.alerts.trigger", systemImage: "bell")
+                RowLabel(title: "settings.alerts.trigger", systemImage: "bell")
             }
             .accessibilityIdentifier("settings.alerts.trigger")
             if model.alertPolicy.trigger == .cryOnly, model.status?.isCryDetectionActive == false {
@@ -210,7 +208,7 @@ private struct ParentAlertSection: View {
             }
             if let until = model.alertPolicy.snoozedUntil {
                 HStack {
-                    Label("parent.snooze.until \(until.formatted(date: .omitted, time: .shortened))", systemImage: "bell.slash")
+                    RowLabel(title: "parent.snooze.until \(until.formatted(date: .omitted, time: .shortened))", systemImage: "bell.slash")
                     Spacer()
                     Button("parent.snooze.resume", action: model.resumeAlerts)
                         .buttonStyle(.borderless)
@@ -222,7 +220,7 @@ private struct ParentAlertSection: View {
                     }
                 } label: {
                     // A menu centres a label that wraps; a row reads from its leading edge.
-                    Label("settings.alerts.snooze", systemImage: "bell.slash")
+                    RowLabel(title: "settings.alerts.snooze", systemImage: "bell.slash")
                         .multilineTextAlignment(.leading)
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
@@ -234,5 +232,24 @@ private struct ParentAlertSection: View {
 
     private var trigger: Binding<AlertTrigger> {
         Binding(get: { model.alertPolicy.trigger }, set: { model.setAlertTrigger($0) })
+    }
+}
+
+/// The label of a settings row: its title in the text colour and its icon in the
+/// accent, so that rows read alike whatever control they sit in. A row that
+/// undoes the pairing takes the alert colour for both.
+private struct RowLabel: View {
+    let title: LocalizedStringKey
+    let systemImage: String
+    var isDestructive = false
+
+    var body: some View {
+        Label {
+            Text(title)
+                .foregroundStyle(isDestructive ? Theme.alert : Theme.text)
+        } icon: {
+            Image(systemName: systemImage)
+                .foregroundStyle(isDestructive ? Theme.alert : Theme.accent)
+        }
     }
 }

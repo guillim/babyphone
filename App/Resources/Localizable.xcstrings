@@ -3299,23 +3299,6 @@
         }
       }
     },
-    "settings.pairing.footer" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "After unpairing, the devices must be linked again."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Après une dissociation, les appareils doivent être reliés à nouveau."
-          }
-        }
-      }
-    },
     "settings.parent %@" : {
       "extractionState" : "manual",
       "localizations" : {
