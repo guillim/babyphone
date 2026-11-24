@@ -358,8 +358,10 @@ final class ParentMonitorModel: ObservableObject {
         let isCryDetectionActive = status?.isCryDetectionActive ?? relayDigest?.status?.isCryDetectionActive ?? false
         if let cry = news.last(where: { $0.kind == .cry && $0.duration == nil }) {
             alertedEvents.insert(cry.id)
-            cryAlert = cry
-            ring(.cry, notification: AlertNotifier.notifyCry)
+            if alertPolicy.shows(.cry, isCryDetectionActive: isCryDetectionActive) {
+                cryAlert = cry
+                ring(.cry, notification: AlertNotifier.notifyCry)
+            }
         }
         if let noise = news.last(where: { $0.kind == .noise && $0.duration == nil }) {
             alertedEvents.insert(noise.id)
@@ -407,7 +409,6 @@ final class ParentMonitorModel: ObservableObject {
     }
 
     private func send(_ message: ParentMessage) {
-        LinkLog.note("DIAG parent: send \(message) connected=\(isConnected)")
         guard let payload = try? WireCoding.encode(message) else { return }
         Task { await connector?.send(payload) }
     }

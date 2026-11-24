@@ -31,6 +31,7 @@ struct ParentLiveView: View {
                     VStack(alignment: .trailing, spacing: 14) {
                         rail
                         TalkButton(isTalking: model.isTalking, isEnabled: model.isConnected, onChange: model.setTalking)
+                        StopButton { Task { await model.stop() } }
                     }
                 }
                 Spacer(minLength: 0)
@@ -286,7 +287,8 @@ struct ParentLiveView: View {
                     showJournal()
                 },
                 secondaryTitle: model.alertPolicy.snoozedUntil == nil ? "parent.snooze" : nil,
-                secondaryAction: { isChoosingSnooze = true }
+                secondaryAction: { isChoosingSnooze = true },
+                dismissAction: model.dismissNoiseAlert
             )
         }
         if let until = model.alertPolicy.snoozedUntil {
@@ -478,8 +480,8 @@ private struct Chip: View {
     }
 }
 
-/// A banner on glass for things the parent must not miss. With one action it
-/// stays on one line. With two, the actions get a line of their own.
+/// A banner on glass for things the parent must not miss. It always stays on one
+/// line: the title gives way first, then the buttons, which are kept narrow.
 private struct GlassBanner: View {
     let title: LocalizedStringKey
     let systemImage: String
@@ -489,59 +491,89 @@ private struct GlassBanner: View {
     let action: @MainActor () -> Void
     var secondaryTitle: LocalizedStringKey?
     var secondaryAction: (@MainActor () -> Void)?
+    /// Set when the banner has a close button, a cross at its end.
+    var dismissAction: (@MainActor () -> Void)?
 
     var body: some View {
-        VStack(spacing: 10) {
-            HStack(spacing: 10) {
-                Image(systemName: systemImage)
-                    .font(.footnote.weight(.bold))
-                    .foregroundStyle(Theme.onAccent)
-                    .frame(width: 32, height: 32)
-                    .background(Theme.alert, in: Circle())
-                Text(title)
-                    .font(.subheadline.weight(.bold))
-                    .foregroundStyle(Theme.text)
-                Spacer(minLength: 8)
-                if let time {
-                    Text(time, format: .dateTime.hour().minute())
-                        .font(.footnote.monospacedDigit())
-                        .foregroundStyle(Theme.secondaryText)
-                }
-                if secondaryTitle == nil {
-                    primaryButton
-                }
+        HStack(spacing: 8) {
+            Image(systemName: systemImage)
+                .font(.caption.weight(.bold))
+                .foregroundStyle(Theme.onAccent)
+                .frame(width: 28, height: 28)
+                .background(Theme.alert, in: Circle())
+            Text(title)
+                .font(.subheadline.weight(.bold))
+                .foregroundStyle(Theme.text)
+                .lineLimit(1)
+                .layoutPriority(-1)
+            Spacer(minLength: 4)
+            if let time {
+                Text(time, format: .dateTime.hour().minute())
+                    .font(.footnote.monospacedDigit())
+                    .foregroundStyle(Theme.secondaryText)
+                    .fixedSize()
             }
             if let secondaryTitle, let secondaryAction {
-                HStack(spacing: 8) {
-                    Button(action: secondaryAction) {
-                        Text(secondaryTitle)
-                            .font(.subheadline.weight(.semibold))
-                            .foregroundStyle(Theme.text)
-                            .frame(maxWidth: .infinity, minHeight: Theme.minimumTouchTarget)
-                            .background(Color.white.opacity(0.1), in: Capsule())
-                            .overlay(Capsule().strokeBorder(Color.white.opacity(0.18), lineWidth: 1))
-                    }
-                    .buttonStyle(.plain)
-                    primaryButton
+                Button(action: secondaryAction) {
+                    Text(secondaryTitle)
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(Theme.text)
+                        .padding(.horizontal, 10)
+                        .frame(minHeight: Theme.minimumTouchTarget)
+                        .background(Color.white.opacity(0.1), in: Capsule())
+                        .overlay(Capsule().strokeBorder(Color.white.opacity(0.18), lineWidth: 1))
                 }
+                .buttonStyle(.plain)
+                .fixedSize()
+            }
+            primaryButton
+            if let dismissAction {
+                Button(action: dismissAction) {
+                    Image(systemName: "xmark")
+                        .font(.footnote.weight(.bold))
+                        .foregroundStyle(Theme.secondaryText)
+                        .frame(width: Theme.minimumTouchTarget, height: Theme.minimumTouchTarget)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(Text("common.close"))
+                .accessibilityIdentifier("banner.close")
             }
         }
-        .padding(.leading, 12)
-        .padding(.trailing, secondaryTitle == nil ? 6 : 12)
-        .padding(.vertical, secondaryTitle == nil ? 6 : 12)
+        .padding(.leading, 10)
+        .padding(.trailing, dismissAction == nil ? 6 : 0)
+        .padding(.vertical, 6)
         .glass(in: RoundedRectangle(cornerRadius: Theme.cornerRadius, style: .continuous), outline: Theme.alert.opacity(0.55))
     }
 
     private var primaryButton: some View {
         Button(action: action) {
             Text(actionTitle)
-                .font(.subheadline.weight(.bold))
+                .font(.footnote.weight(.bold))
                 .foregroundStyle(Theme.onAccent)
-                .padding(.horizontal, 18)
-                .frame(maxWidth: secondaryTitle == nil ? nil : .infinity, minHeight: Theme.minimumTouchTarget)
+                .padding(.horizontal, 12)
+                .frame(minHeight: Theme.minimumTouchTarget)
                 .background(Theme.accent, in: Capsule())
         }
         .buttonStyle(.plain)
+        .fixedSize()
+    }
+}
+
+/// Stops the monitoring altogether, from the live screen. Sits under the talk button.
+private struct StopButton: View {
+    let action: @MainActor () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: "stop.fill")
+                .font(.body.weight(.semibold))
+                .foregroundStyle(Theme.text)
+                .frame(width: Theme.minimumTouchTarget, height: Theme.minimumTouchTarget)
+                .glass(in: Circle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(Text("parent.stop"))
+        .accessibilityIdentifier("parent.stop")
     }
 }
 

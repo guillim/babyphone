@@ -6,6 +6,8 @@ public enum AlertTrigger: String, Codable, Sendable, CaseIterable {
     case anyNoise
     /// Crying only. Other sounds still go to the journal.
     case cryOnly
+    /// Nothing about the room. A lost link and a power problem still ring.
+    case nothing
 }
 
 /// Something the parent unit may alert about.
@@ -51,7 +53,11 @@ public struct AlertPolicy: Sendable, Equatable {
     /// "Crying only" is honoured only while the baby unit says it can recognise
     /// crying. Otherwise it would silence every alert.
     public func shows(_ kind: AlertKind, isCryDetectionActive: Bool) -> Bool {
-        kind != .noise || trigger == .anyNoise || !isCryDetectionActive
+        switch kind {
+        case .power, .linkLost: true
+        case .cry: trigger != .nothing
+        case .noise: trigger == .anyNoise || (trigger == .cryOnly && !isCryDetectionActive)
+        }
     }
 
     /// Whether an alert of this kind makes a sound now.

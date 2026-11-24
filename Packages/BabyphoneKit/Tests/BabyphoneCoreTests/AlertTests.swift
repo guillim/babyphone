@@ -51,6 +51,18 @@ import TestSupport
         #expect(policy.rings(.noise, at: start, isCryDetectionActive: false))
     }
 
+    @Test func nothingHidesNoiseAndCryingButNotALostLinkOrAPowerProblem() {
+        let policy = AlertPolicy(trigger: .nothing)
+        for detecting in [true, false] {
+            #expect(!policy.shows(.noise, isCryDetectionActive: detecting))
+            #expect(!policy.shows(.cry, isCryDetectionActive: detecting))
+            #expect(!policy.rings(.noise, at: start, isCryDetectionActive: detecting))
+            #expect(!policy.rings(.cry, at: start, isCryDetectionActive: detecting))
+        }
+        #expect(policy.rings(.linkLost, at: start, isCryDetectionActive: true))
+        #expect(policy.rings(.power, at: start, isCryDetectionActive: true))
+    }
+
     // MARK: Cry detector
 
     @Test func oneConfidentReadingIsNotACry() {

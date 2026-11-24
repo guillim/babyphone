@@ -76,22 +76,6 @@ struct SettingsView: View {
                         ParentAlertSection(model: parentModel)
                     }
 
-                    // Kept apart from the alerts: this ends everything, where a pause only quietens.
-                    if let parentModel, parentModel.isMonitoring {
-                        Section {
-                            Button {
-                                Task {
-                                    await parentModel.stop()
-                                    close()
-                                }
-                            } label: {
-                                RowLabel(title: "settings.stopListening", systemImage: "stop.circle")
-                            }
-                        } footer: {
-                            Text("settings.stopListening.footer")
-                        }
-                    }
-
                     Section {
                         Button(role: .destructive) {
                             pendingAction = .unpair
@@ -188,7 +172,7 @@ struct SettingsView: View {
     }
 }
 
-/// One parent's choices about alerts: about what, and a pause.
+/// One parent's choices about alerts: about what.
 private struct ParentAlertSection: View {
     @ObservedObject var model: ParentMonitorModel
 
@@ -197,6 +181,7 @@ private struct ParentAlertSection: View {
             Picker(selection: trigger) {
                 Text("settings.alerts.trigger.anyNoise").tag(AlertTrigger.anyNoise)
                 Text("settings.alerts.trigger.cryOnly").tag(AlertTrigger.cryOnly)
+                Text("settings.alerts.trigger.nothing").tag(AlertTrigger.nothing)
             } label: {
                 RowLabel(title: "settings.alerts.trigger", systemImage: "bell")
             }
@@ -205,25 +190,6 @@ private struct ParentAlertSection: View {
                 Text("settings.alerts.cryUnavailable")
                     .font(.footnote)
                     .foregroundStyle(Theme.alert)
-            }
-            if let until = model.alertPolicy.snoozedUntil {
-                HStack {
-                    RowLabel(title: "parent.snooze.until \(until.formatted(date: .omitted, time: .shortened))", systemImage: "bell.slash")
-                    Spacer()
-                    Button("parent.snooze.resume", action: model.resumeAlerts)
-                        .buttonStyle(.borderless)
-                }
-            } else if model.isMonitoring {
-                Menu {
-                    ForEach(AlertPolicy.snoozeChoices, id: \.self) { minutes in
-                        Button("parent.snooze.minutes \(String(minutes))") { model.snoozeAlerts(minutes: minutes) }
-                    }
-                } label: {
-                    // A menu centres a label that wraps; a row reads from its leading edge.
-                    RowLabel(title: "settings.alerts.snooze", systemImage: "bell.slash")
-                        .multilineTextAlignment(.leading)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                }
             }
         } header: {
             Text("settings.alerts")
