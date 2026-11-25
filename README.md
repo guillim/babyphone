@@ -142,3 +142,7 @@ Two workflows run on GitHub:
 | `Simulators` | Every night, on demand, and when the UI tests change | The walk through the screens on an iPhone SE, an iPhone 17 and an iPad, and the two-device session | 8 to 15 minutes for the screens, 15 to 30 for the two-device session. Nearly all of it is spent starting simulators, and build machines vary a lot. |
 
 `CI` is the gate. To run `Simulators` on a commit, open the Actions tab, choose the workflow and press « Run workflow ».
+
+## License
+
+[MIT](LICENSE)
