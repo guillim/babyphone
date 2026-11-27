@@ -2,16 +2,22 @@ name: Simulators
 
 # Runs the app itself, in simulators. A build machine needs several minutes to
 # start one simulator from cold and much longer for two, so these checks take
-# between ten and thirty minutes. They are kept out of the CI workflow,
+# between ten and forty minutes. They are kept out of the CI workflow,
 # which answers in five: they run every night, on demand from the Actions tab,
-# and when the tests they run are changed.
+# and when the app or the tests they run are changed. A change to a screen can
+# break these tests as surely as a change to the tests: both must run them, so
+# that the commit that breaks them is the one that turns red.
+# Scripts/test-simulators.sh runs the same tests on a Mac in a few minutes.
 on:
   schedule:
     - cron: "17 3 * * *"
   push:
     paths:
+      - "App/**"
+      - "Packages/**"
+      - "Config/**"
+      - "Babyphone.xcodeproj/**"
       - "UITests/**"
-      - "App/TestHarness.swift"
       - "Scripts/start-simulator.sh"
       - "Scripts/start-baby-unit.sh"
       - ".github/workflows/simulators.yml"
@@ -26,7 +32,8 @@ jobs:
   screens:
     name: Screens (${{ matrix.device }})
     runs-on: macos-26
-    timeout-minutes: 25
+    # A simulator alone can take ten minutes to start here, and a walk that is made twice a quarter of an hour.
+    timeout-minutes: 40
     env:
       APP: Derived/Build/Products/Debug-iphonesimulator/Babyphone.app
     strategy:
@@ -98,7 +105,8 @@ jobs:
   two-devices:
     name: Two devices, end to end
     runs-on: macos-26
-    timeout-minutes: 45
+    # Two simulators take up to twenty minutes to start here, and a session that is run twice as long again.
+    timeout-minutes: 60
     env:
       APP: Derived/Build/Products/Debug-iphonesimulator/Babyphone.app
     steps:

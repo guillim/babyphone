@@ -71,11 +71,12 @@ final class TwoDeviceTests: AppTestCase {
         // White noise asks for how long before it starts.
         whiteNoise.tap()
         let quarterHour = app.buttons["15 min"]
-        XCTAssertTrue(quarterHour.waitForExistence(timeout: step))
+        XCTAssertTrue(waitUntil(step) { quarterHour.isHittable }, "The white noise durations are not within reach")
+        attachScreenshot(named: "parent-white-noise")
         quarterHour.tap()
         XCTAssertTrue(
             waitUntil(step) { nightLight.isSelected && lullaby.isSelected && whiteNoise.isSelected },
-            "A command had no effect"
+            "A command had no effect: night light \(nightLight.isSelected), lullaby \(lullaby.isSelected), white noise \(whiteNoise.isSelected)"
         )
         attachScreenshot(named: "parent-commands")
         for control in [nightLight, lullaby, whiteNoise] {

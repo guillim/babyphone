@@ -127,9 +127,12 @@ The TestFlight workflow archives the app and uploads it: Actions tab > TestFligh
 ```sh
 swift test --package-path Packages/BabyphoneKit   # core logic, WebRTC and network transports
 python3 Scripts/localizations.py                  # every string exists in French and English
+Scripts/test-simulators.sh                        # the app in two simulators: every screen, then a whole session
 ```
 
 On Linux the first command runs the core tests only. In Xcode, ⌘U runs everything, including the walk through the screens in the selected simulator.
+
+Run `Scripts/test-simulators.sh` before pushing a change to the app. It takes about four minutes on a Mac, and the same tests take half an hour on GitHub.
 
 No test waits without a limit. Every wait in the test helpers has a deadline, and `Scripts/test-with-watchdog.sh` stops a run that goes silent and prints where each thread is stuck.
 
@@ -138,9 +141,9 @@ Two workflows run on GitHub:
 | Workflow | When | Checks | Duration |
 | --- | --- | --- | --- |
 | `CI` | Every push | Core tests on Linux, strings, then on the oldest and newest Xcode: all package tests, the transport tests five more times, and the app build | About 5 minutes |
-| `Simulators` | Every night, on demand, and when the UI tests change | The walk through the screens on an iPhone SE, an iPhone 17 and an iPad, and the two-device session | 8 to 15 minutes for the screens, 15 to 30 for the two-device session. Nearly all of it is spent starting simulators, and build machines vary a lot. |
+| `Simulators` | Every night, on demand, and when the app or the UI tests change | The walk through the screens on an iPhone SE, an iPhone 17 and an iPad, and the two-device session | 8 to 15 minutes for the screens, 15 to 30 for the two-device session. Nearly all of it is spent starting simulators, and build machines vary a lot. |
 
-`CI` is the gate. To run `Simulators` on a commit, open the Actions tab, choose the workflow and press « Run workflow ».
+`CI` is the gate. `Simulators` follows it on every commit that changes the app, so the commit that breaks a screen is the one that turns red. To run it on any other commit, open the Actions tab, choose the workflow and press « Run workflow ».
 
 ## License
 
