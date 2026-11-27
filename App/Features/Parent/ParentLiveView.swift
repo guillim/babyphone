@@ -232,7 +232,8 @@ struct ParentLiveView: View {
                 }
             }
             .accessibilityIdentifier("parent.whiteNoise")
-            .popover(isPresented: $isChoosingWhiteNoise, arrowEdge: .leading) {
+            // The rail runs along the screen's trailing edge: the choices open on its other side.
+            .popover(isPresented: $isChoosingWhiteNoise, arrowEdge: .trailing) {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("parent.whiteNoise.title")
                         .font(.footnote.weight(.semibold))
