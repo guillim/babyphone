@@ -20,3 +20,6 @@ Store/out/
 # Working notes, not part of the project
 reports/
 research_notes/
+
+# Python
+__pycache__/
