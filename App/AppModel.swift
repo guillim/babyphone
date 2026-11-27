@@ -59,6 +59,10 @@ final class AppModel: ObservableObject {
         let isSaved = PairingKeychain.save(keys)
         LinkLog.note("pairing: \(keys.count) key(s) saved in the Keychain: \(isSaved)")
         try? await settings?.set(ISO8601DateFormatter().string(from: Date()), for: .pairedAt)
+        if role == .baby {
+            // Pairing is the last thing done by hand on the baby unit: monitoring starts by itself.
+            try? await settings?.set("1", for: .isMonitoring)
+        }
         stage = .monitoring(role, keys)
     }
 

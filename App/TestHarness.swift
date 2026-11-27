@@ -21,11 +21,10 @@ enum TestHarness {
         try? content.write(to: folder.appendingPathComponent(milestone), atomically: true, encoding: .utf8)
     }
 
-    /// Plays the part of the person next to the baby unit: starts monitoring,
-    /// waits for the parent unit, and stops when the test says it is done.
+    /// Plays the part of the person next to the baby unit: checks that pairing started
+    /// monitoring, waits for the parent unit, and stops when the test says it is done.
     static func runBabySession(with model: BabyMonitorModel) async {
         guard let folder else { return }
-        await model.start()
         report(model.isMonitoring ? "baby-monitoring" : "baby-failed")
         await wait { !model.connectedRoutes.isEmpty }
         report("baby-connected")

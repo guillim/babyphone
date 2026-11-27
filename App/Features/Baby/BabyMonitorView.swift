@@ -1,7 +1,8 @@
 import BabyphoneCore
 import SwiftUI
 
-/// The baby unit's only screen: start monitoring, then stay dark and out of the way.
+/// The baby unit's only screen: monitor, then stay dark and out of the way.
+/// Monitoring starts by itself after pairing. The start button is for after a stop.
 struct BabyMonitorView: View {
     @StateObject private var model: BabyMonitorModel
     @State private var isShowingSettings = false
@@ -27,7 +28,7 @@ struct BabyMonitorView: View {
         .simultaneousGesture(TapGesture().onEnded { model.registerTouch() })
         .task {
             await model.loadSettings()
-            await model.resumeIfInterrupted()
+            await model.startIfExpected()
             #if DEBUG
             await TestHarness.runBabySession(with: model)
             #endif

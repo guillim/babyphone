@@ -152,11 +152,11 @@ final class BabyMonitorModel: ObservableObject {
 
     // MARK: Monitoring
 
-    /// Starts monitoring again when the app ended without anyone stopping it:
-    /// an iOS update, a restart, the system closing the app in the night.
-    func resumeIfInterrupted() async {
+    /// Starts monitoring when nobody stopped it: a parent unit was just paired, or the app
+    /// ended by itself (an iOS update, a restart, the system closing the app in the night).
+    func startIfExpected() async {
         guard (try? await settings.string(for: .isMonitoring)) != nil else { return }
-        LinkLog.note("baby unit: monitoring resumes after the app restarted")
+        LinkLog.note("baby unit: monitoring starts by itself")
         await start()
     }
 

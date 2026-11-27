@@ -19,7 +19,7 @@ Xcode creates the iCloud container `iCloud.<bundle identifier>` the first time i
 
 1. On each device, pick a side: « Côté bébé » or « Côté parent ».
 2. Pair them once, side by side: the parent device scans the QR code shown on the baby device, or you type its six digits. Pairing starts on the sixth digit.
-3. On the baby device, tap « Démarrer la surveillance ». The parent device connects by itself.
+3. That is all: the baby device starts monitoring as soon as it is paired, and the parent device connects by itself. After a stop, tap « Démarrer la surveillance » on the baby device.
 
 To add a second parent, open Réglages on the baby device while monitoring is stopped and choose « Ajouter un parent ». Each parent is paired separately and can be removed separately.
 
