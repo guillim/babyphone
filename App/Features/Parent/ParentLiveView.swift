@@ -245,11 +245,6 @@ struct ParentLiveView: View {
                 .frame(minWidth: 200)
                 .popoverOnPhone()
             }
-            RailButton(
-                title: "parent.lowLight", systemImage: "moon.fill",
-                isOn: model.status?.isLowLightOn ?? false, action: model.toggleLowLight
-            )
-            .accessibilityIdentifier("parent.lowLight")
             Capsule()
                 .fill(Color.white.opacity(0.16))
                 .frame(width: 24, height: 1)

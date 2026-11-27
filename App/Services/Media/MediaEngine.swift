@@ -27,8 +27,6 @@ final class BabyMedia: @unchecked Sendable {
     private enum VideoQuality {
         static let targetPixelCount = 1280 * 720
         static let framesPerSecond = 15
-        /// In low light the camera may expose each frame for much longer, which a slow frame rate allows.
-        static let lowLightFramesPerSecond = 5
         static let maxBitrate = 1_200_000
     }
 
@@ -62,20 +60,14 @@ final class BabyMedia: @unchecked Sendable {
     /// Starts the camera facing `position`. Returns false when that camera cannot be used.
     /// The camera starts asynchronously: `onRunning` is called, off the main thread, once it runs.
     @discardableResult
-    func startCamera(position: AVCaptureDevice.Position, lowLight: Bool, onRunning: @escaping @Sendable () -> Void) -> Bool {
+    func startCamera(position: AVCaptureDevice.Position, onRunning: @escaping @Sendable () -> Void) -> Bool {
         guard
             AVCaptureDevice.authorizationStatus(for: .video) == .authorized,
             let device = RTCCameraVideoCapturer.captureDevices().first(where: { $0.position == position }),
             let format = Self.preferredFormat(for: device)
         else { return false }
-        let wanted = lowLight ? VideoQuality.lowLightFramesPerSecond : VideoQuality.framesPerSecond
         let fastestRate = format.videoSupportedFrameRateRanges.map(\.maxFrameRate).max() ?? 30
-        capturer.startCapture(with: device, format: format, fps: min(wanted, Int(fastestRate))) { _ in
-            // Where the sensor supports it, the system brightens a dim picture by itself.
-            if device.isLowLightBoostSupported, (try? device.lockForConfiguration()) != nil {
-                device.automaticallyEnablesLowLightBoostWhenAvailable = lowLight
-                device.unlockForConfiguration()
-            }
+        capturer.startCapture(with: device, format: format, fps: min(VideoQuality.framesPerSecond, Int(fastestRate))) { _ in
             onRunning()
         }
         return true

@@ -40,7 +40,7 @@ import TestSupport
         }
         let parentMessages: [ParentMessage] = [
             .hello(lastJournalRevision: 12), .setNightLight(true), .setSensitivity(.high), .talking(false),
-            .setWhiteNoise(minutes: 30), .setWhiteNoise(minutes: nil), .setLowLight(true),
+            .setWhiteNoise(minutes: 30), .setWhiteNoise(minutes: nil),
         ]
         for message in parentMessages {
             #expect(try WireCoding.decode(ParentMessage.self, from: WireCoding.encode(message)) == message)

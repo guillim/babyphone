@@ -24,8 +24,6 @@ public struct MonitorStatus: Codable, Sendable, Equatable {
     public var isLullabyPlaying: Bool
     /// When the white noise will stop by itself, or nil when it is off.
     public var whiteNoiseEndsAt: Date?
-    /// The camera trades frame rate for longer exposure, to see in a dim room.
-    public var isLowLightOn: Bool
     /// The baby unit can recognise crying on this device. When false, `isCrying` says nothing.
     public var isCryDetectionActive: Bool
     public var isCrying: Bool
@@ -42,7 +40,6 @@ public struct MonitorStatus: Codable, Sendable, Equatable {
         isNightLightOn: Bool = false,
         isLullabyPlaying: Bool = false,
         whiteNoiseEndsAt: Date? = nil,
-        isLowLightOn: Bool = false,
         isCryDetectionActive: Bool = false,
         isCrying: Bool = false
     ) {
@@ -57,7 +54,6 @@ public struct MonitorStatus: Codable, Sendable, Equatable {
         self.isNightLightOn = isNightLightOn
         self.isLullabyPlaying = isLullabyPlaying
         self.whiteNoiseEndsAt = whiteNoiseEndsAt
-        self.isLowLightOn = isLowLightOn
         self.isCryDetectionActive = isCryDetectionActive
         self.isCrying = isCrying
     }

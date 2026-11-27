@@ -55,7 +55,7 @@ final class TwoDeviceTests: AppTestCase {
 
         // Every control a parent needs is on screen without scrolling, on the smallest iPhone.
         let controls = [
-            "parent.talk", "parent.nightLight", "parent.lullaby", "parent.whiteNoise", "parent.lowLight",
+            "parent.talk", "parent.nightLight", "parent.lullaby", "parent.whiteNoise",
             "parent.settings", "parent.journal",
         ]
         for control in controls {
@@ -64,27 +64,24 @@ final class TwoDeviceTests: AppTestCase {
 
         // Commands travel to the baby unit, and its new state travels back.
         let nightLight = app.buttons["parent.nightLight"], lullaby = app.buttons["parent.lullaby"]
-        let whiteNoise = app.buttons["parent.whiteNoise"], lowLight = app.buttons["parent.lowLight"]
+        let whiteNoise = app.buttons["parent.whiteNoise"]
         XCTAssertFalse(nightLight.isSelected)
         nightLight.tap()
         lullaby.tap()
-        lowLight.tap()
         // White noise asks for how long before it starts.
         whiteNoise.tap()
         let quarterHour = app.buttons["15 min"]
         XCTAssertTrue(quarterHour.waitForExistence(timeout: step))
         quarterHour.tap()
         XCTAssertTrue(
-            waitUntil(step) { nightLight.isSelected && lullaby.isSelected && lowLight.isSelected && whiteNoise.isSelected },
+            waitUntil(step) { nightLight.isSelected && lullaby.isSelected && whiteNoise.isSelected },
             "A command had no effect"
         )
         attachScreenshot(named: "parent-commands")
-        for control in [nightLight, lullaby, whiteNoise, lowLight] {
+        for control in [nightLight, lullaby, whiteNoise] {
             control.tap()
         }
-        XCTAssertTrue(waitUntil(step) {
-            !nightLight.isSelected && !lullaby.isSelected && !whiteNoise.isSelected && !lowLight.isSelected
-        })
+        XCTAssertTrue(waitUntil(step) { !nightLight.isSelected && !lullaby.isSelected && !whiteNoise.isSelected })
 
         // The journal kept by the baby unit reaches this unit.
         app.buttons["parent.journal"].tap()

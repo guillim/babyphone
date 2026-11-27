@@ -237,11 +237,6 @@ final class ParentMonitorModel: ObservableObject {
         send(.setVideoEnabled(!status.isVideoEnabled))
     }
 
-    func toggleLowLight() {
-        guard let status else { return }
-        send(.setLowLight(!status.isLowLightOn))
-    }
-
     /// Plays white noise in the room for `minutes`, or stops it when nil.
     func setWhiteNoise(minutes: Int?) {
         send(.setWhiteNoise(minutes: minutes))

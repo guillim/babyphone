@@ -107,7 +107,6 @@ final class BabyMonitorModel: ObservableObject {
     private var cryEvent: JournalEvent?
     private var whiteNoiseEndsAt: Date?
     private var whiteNoiseTimer: Task<Void, Never>?
-    private var isLowLightOn = false
     private var isInBackground = false
     private var tasks: [Task<Void, Never>] = []
     private var lifecycleObservers: [any NSObjectProtocol] = []
@@ -447,7 +446,7 @@ final class BabyMonitorModel: ObservableObject {
         let isWanted = canFilm && (nightLight == .torch || parents.contains { $0.route != nil && $0.wantsVideo })
         guard isWanted != isCameraRunning else { return }
         if isWanted {
-            isCameraRunning = media.startCamera(position: usesFrontCamera ? .front : .back, lowLight: isLowLightOn) { [weak self] in
+            isCameraRunning = media.startCamera(position: usesFrontCamera ? .front : .back) { [weak self] in
                 // The camera starts asynchronously, and the torch only takes once it runs.
                 Task { @MainActor in
                     guard let self, self.nightLight == .torch, self.isCameraRunning else { return }
@@ -458,13 +457,6 @@ final class BabyMonitorModel: ObservableObject {
             media.stopCamera()
             isCameraRunning = false
         }
-    }
-
-    private func restartCameraIfRunning() {
-        guard isCameraRunning else { return }
-        media.stopCamera()
-        isCameraRunning = false
-        updateCamera()
     }
 
     // MARK: Parent units
@@ -497,9 +489,6 @@ final class BabyMonitorModel: ObservableObject {
             roomAudio.setLullabyPlaying(isPlaying)
         case .setWhiteNoise(let minutes):
             setWhiteNoise(minutes: minutes)
-        case .setLowLight(let isOn):
-            isLowLightOn = isOn
-            restartCameraIfRunning()
         case .setVideoEnabled(let isEnabled):
             parent.wantsVideo = isEnabled
             updateCamera()
@@ -546,7 +535,6 @@ final class BabyMonitorModel: ObservableObject {
             isNightLightOn: nightLight != .off,
             isLullabyPlaying: isLullabyPlaying,
             whiteNoiseEndsAt: whiteNoiseEndsAt,
-            isLowLightOn: isLowLightOn,
             isCryDetectionActive: roomAudio.isCryDetectionActive,
             isCrying: cryDetector.isCrying
         )

@@ -62,13 +62,13 @@ The decision numbers (D) and proposal numbers (P) are those of version 3 of the 
 | App name | NuzzleCam | `Config/App.xcconfig` |
 | Bundle identifier | `com.guillim.nuzzlecam` | `Config/App.xcconfig` |
 | Devices (D13) | iPhone and iPad, iOS 16 or later, both roles. iPhone in portrait, iPad in any orientation. | `Config/App.xcconfig`, `Config/Info.plist` |
-| Two parents (D11) | The baby unit keeps one key, one Bonjour service, one rendezvous record and one connection per parent. Audio-only is each parent's own choice. Night light, lullaby, white noise, low light and sensitivity are shared. | `BabyMonitorModel.swift` |
+| Two parents (D11) | The baby unit keeps one key, one Bonjour service, one rendezvous record and one connection per parent. Audio-only is each parent's own choice. Night light, lullaby, white noise and sensitivity are shared. | `BabyMonitorModel.swift` |
 | Strong key under the code (D21) | A password-authenticated key exchange. The parent still types six digits. | `Pairing/PasswordKeyExchange.swift` |
 | Reconnection (D14) | Each side signals every 2 s. After 10 s of silence the link is dropped and rebuilt. A picture that stops arriving for 15 s while the link answers also triggers a reconnection. | `Link/PeerLink.swift`, `ParentMonitorModel.swift` |
 | Alerts (D18) | A chime for noise and power alerts, and a looping alarm 10 s after an unrecovered link loss. Both play through the app's own audio, so they are heard on silent and in a Focus mode. Notifications only add to this when the app is in the background. | `Audio/ParentAudio.swift` |
 | Noise calibration (D20) | The detector follows the room's steady background level. The presets set how far above it a sound must rise: 8, 15 or 24 dB. | `Monitoring/NoiseDetector.swift` |
 | Power alert (D15) | When the charger is removed, and when the battery falls under 20 % unplugged | `Monitoring/PowerWatch.swift` |
-| Low light and zoom (D16) | Low light slows the camera to 5 frames a second for longer exposures. Zoom is done on the parent's screen, up to 4 times, so each parent zooms independently. | `MediaEngine.swift`, `ParentLiveView.swift` |
+| Zoom (D16) | Zoom is done on the parent's screen, up to 4 times, so each parent zooms independently. | `MediaEngine.swift`, `ParentLiveView.swift` |
 | White noise (D17) | Synthesised by the app, for 15, 30 or 60 minutes | `Audio/ToneSynthesizer.swift` |
 | Failure screen (D19) | Guided fixes: personal hotspot, or mobile data on both sides | `ConnectionFailedView.swift` |
 | Diagnostic view (P1) | Built: iCloud status, public IPv6, addresses, last signal, path in use, manual reconnection, export of the night log | `DiagnosticsView.swift` |
@@ -94,7 +94,7 @@ Verified by automated tests:
 - The real secured channel: frames cross TLS keyed by the pairing key, and a device with another key is refused.
 - Both devices end to end over real TLS and real WebRTC, on the local path and through the rendezvous, and two parents connected to the same baby unit at once.
 - The app itself in a simulator, on an iPhone SE, an iPhone 17 and an iPad: it starts, every screen appears, and the parent's controls fit an iPhone SE without scrolling.
-- The two apps together, in two simulators: pairing with the six-digit code, Bonjour discovery and connection over the local network, night light, lullaby, white noise and low-light commands over the live link, the journal sync, and a deliberate stop.
+- The two apps together, in two simulators: pairing with the six-digit code, Bonjour discovery and connection over the local network, night light, lullaby and white noise commands over the live link, the journal sync, and a deliberate stop.
 
 The whole app compiles in CI with the oldest and the newest supported Xcode.
 
@@ -102,7 +102,6 @@ Not verified, because it needs two real iPhones:
 
 - Everything that touches hardware or an account: camera, microphone, speaker, torch, CloudKit.
 - Two parents on real devices. The connections are tested, the two encodes on an old device are not.
-- The low-light mode: how much it brightens the picture depends on each camera.
 - Peer-to-peer Wi-Fi during pairing, which simulators do not have.
 - The parent app staying alive in the background for a whole night, including after a phone call.
 - The router port on a real router. The protocols are tested against a simulated one. Real routers differ, some answer only a search sent to the whole network, which iOS allows only with a permission from Apple, and a parent on an IPv6-only mobile network cannot use an IPv4 port.
