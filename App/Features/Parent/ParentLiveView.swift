@@ -242,6 +242,7 @@ struct ParentLiveView: View {
                         .foregroundStyle(Theme.secondaryText)
                         .padding(.horizontal, 12)
                         .padding(.top, 8)
+                        .accessibilityIdentifier("parent.whiteNoise.title")
                     ForEach([15, 30, 60], id: \.self, content: whiteNoiseChoice)
                 }
                 .padding(.bottom, 8)
@@ -275,6 +276,8 @@ struct ParentLiveView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal, 12)
                 .frame(minHeight: Theme.minimumTouchTarget)
+                // The whole row answers a touch, not only its words.
+                .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
     }
