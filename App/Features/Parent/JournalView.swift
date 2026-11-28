@@ -1,7 +1,7 @@
 import BabyphoneCore
 import SwiftUI
 
-/// The night journal, and the noise sensitivity that feeds it.
+/// The night journal.
 struct JournalView: View {
     @ObservedObject var model: ParentMonitorModel
 
@@ -28,6 +28,7 @@ struct JournalView: View {
             }
         }
         .themedList()
+        .accessibilityIdentifier("journal")
         .navigationTitle("journal.title")
         .navigationBarTitleDisplayMode(.inline)
         .onAppear(perform: model.dismissNoiseAlert)
