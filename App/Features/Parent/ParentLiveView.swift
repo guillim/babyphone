@@ -232,7 +232,10 @@ struct ParentLiveView: View {
                 }
             }
             .accessibilityIdentifier("parent.whiteNoise")
-            .popover(isPresented: $isChoosingWhiteNoise, arrowEdge: .leading) {
+            // The edge names where the arrow sits on the popover, not on the button: on its
+            // trailing edge, the popover opens on the picture's side of the rail. On the leading
+            // edge it opened towards the screen's edge, squeezed to a sliver over the rail.
+            .popover(isPresented: $isChoosingWhiteNoise, arrowEdge: .trailing) {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("parent.whiteNoise.title")
                         .font(.footnote.weight(.semibold))

@@ -72,6 +72,10 @@ final class TwoDeviceTests: AppTestCase {
         whiteNoise.tap()
         let quarterHour = app.buttons["15 min"]
         XCTAssertTrue(quarterHour.waitForExistence(timeout: step))
+        // The choices open beside the rail, over the picture, wide enough to read.
+        XCTAssertLessThanOrEqual(quarterHour.frame.maxX, whiteNoise.frame.minX, "The white noise choices cover the rail")
+        XCTAssertGreaterThanOrEqual(quarterHour.frame.width, 120, "The white noise choices are squeezed")
+        attachScreenshot(named: "parent-white-noise")
         quarterHour.tap()
         XCTAssertTrue(
             waitUntil(step) { nightLight.isSelected && lullaby.isSelected && whiteNoise.isSelected },
