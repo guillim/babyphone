@@ -6,7 +6,7 @@ APP_DISPLAY_NAME = NuzzleCam
 PRODUCT_BUNDLE_IDENTIFIER = com.guillim.nuzzlecam
 
 // Shown in the settings. Every commit raises the last number: see CLAUDE.md.
-MARKETING_VERSION = 0.1.1
+MARKETING_VERSION = 0.1.2
 CURRENT_PROJECT_VERSION = 1
 
 // iOS 16 keeps older devices (iPhone 8 and later, iPad 5 and later) usable as the baby unit.
