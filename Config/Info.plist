@@ -4,6 +4,9 @@
 <dict>
 	<key>CFBundleDisplayName</key>
 	<string>$(APP_DISPLAY_NAME)</string>
+	<!-- Answers App Store Connect's export question for every build: no encryption beyond the standard one. -->
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<key>NSBonjourServices</key>
 	<array>
 		<string>_nuzzlecam._tcp</string>
